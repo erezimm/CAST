@@ -1,0 +1,43 @@
+{% extends 'tom_common/base.html' %}
+{% load bootstrap4 targets_extras dataproduct_extras %}
+{% block title %}Candidates{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">Candidate List</h1>
+  <table id="candidateTable" class="table table-hover">
+      <thead>
+          <tr>
+              <th>
+                  <input type="checkbox" id="selectAll" onClick="selectAllCheckboxes(this)" />
+              </th>
+              <th>RA</th>
+              <th>Dec</th>
+              <th>Observations</th>
+              <th>Saved Data</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for cand in candidates %}
+          <tr>
+              <td>
+                  <input type="checkbox" name="selected-target" value="{{ cand.id }}" />
+              </td>
+              <td>{{ cand.ra }}</td>
+              <td>{{ cand.dec }}</td>
+              <td>{{ cand.observationrecord_set.count }}</td>
+              <td>{{ cand.dataproduct_set.count }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+              <td colspan="5" class="text-left">
+                  No candidates available. 
+                  {% if cand_count == 0 and not query_string %}
+                      Consider <a href="{% url 'tom_targets:create' %}">adding one manually</a>.
+                  {% endif %}
+              </td>
+          </tr>
+          {% endfor %}
+      </tbody>
+  </table>
+</div>
+{% endblock %}

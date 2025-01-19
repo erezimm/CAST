@@ -1,0 +1,67 @@
+{% extends 'tom_common/base.html' %}
+{% load static targets_extras observation_extras dataproduct_extras tom_common_extras %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <h2 class="text-center">Welcome to LAST TOM!</h2>
+    <ul>
+        <li>
+          Check out the <a href="https://docs.google.com/document/d/1TaiwCzrG-WHzgUFbbVuyFd8j0ye62NqF6mF0bkpmJzc/edit?tab=t.0" title="LAST observer manual" target="_blank">LAST observer manual
+          </a> to start observing!
+        </li>
+        <li>
+          <a href="{% url 'targets:create' %}" title="Create Target">Add targets if you wish</a>.
+        </li>
+      </ul>
+    <p class="text-center"><img src="{% static 'tom_common/img/last.png' %}" class="img-fluid mx-auto"></p>
+    <!-- <ul>
+      <li>
+        Check out the <a href="https://tom-toolkit.readthedocs.io/en/stable/" title="TOM Toolkit home page" target="_blank">TOM
+        Toolkit homepage</a> for the latest news, downloads and documentation.
+      </li>
+      <li>
+        <a href="{% url 'targets:create' %}" title="Create Target">Add your first target</a>.
+      </li>
+      <li>
+        Customize this page by editing the
+        <code>templates/tom_common/index.html</code> file or by editing your
+        project's <code>urls.py</code>.
+      </li>
+      <li>
+        Take a look at some <a href="https://tom-toolkit.readthedocs.io/en/stable/customization/index.html" target="_blank">common first customizations</a>.
+      </li>
+    </ul>
+    <h3>Other Resources</h3>
+    <ul>
+      <li>The official <a href="https://www.djangoproject.com/" target="_blank">Django documentation</a>.</li>
+      <li>The official <a href="http://www.astropy.org/" target="_blank">Astropy documentation</a>.</li>
+    </ul> -->
+    <hr>
+    <p><em><a target="_blank" href="https://github.com/TOMToolkit/tom_base">TOM Toolkit</a> version {{ version }}</em></p>
+  </div>
+  <div class="col-md-4">
+    <div style="margin-top: 20px;">
+        <h2>Real-Time Cloud Cover</h2>
+        <iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" 
+        src="https://widgets.meteox.com/en-GB/widgets/radar/location/314182/satellite?z=8"
+        style="width:100%; height:600px; max-width:600px; max-height:600px; padding:0px; border:none; box-sizing:border-box;" 
+        scrolling="no" 
+        frameborder="0">
+    </iframe>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        Latest Comments
+      </div>
+      {% recent_comments %}
+    </div>
+    <br/>
+    <div class="card">
+      <div class="card-header">
+        Latest Targets
+      </div>
+      {% recent_targets %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'tom_common/base.html' %}
+{% block title %}Candidate List{% endblock %}
+{% block content %}
+<div class="container mt-8">
+    <h1 class="mb-8">Candidate List</h1>
+
+    <!-- Filter Dropdown -->
+    <form method="GET" action="{% url 'candidates:list' %}" class="mb-4">
+        <div class="form-group">
+            <label for="filter">Filter by Real/Bogus Status:</label>
+            <select id="filter" name="filter" class="form-control form-control-sm" onchange="this.form.submit();">
+                <option value="neither" {% if filter_value == 'neither' %}selected{% endif %}>New</option>
+                <option value="real" {% if filter_value == 'real' %}selected{% endif %}>Real</option>
+                <option value="bogus" {% if filter_value == 'bogus' %}selected{% endif %}>Bogus</option>
+                <option value="all" {% if filter_value == 'all' %}selected{% endif %}>All</option>
+            </select>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    <th>Date added</th>
+                    <th>Name</th>
+                    <th>RA</th>
+                    <th>Dec</th>
+                    <th>Discovery date</th>
+                    <th>Real/Bogus</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in candidate_status %}
+                <tr
+                    {% if item.candidate.real_bogus is True %}
+                    class="table-success"  
+                    {% elif item.candidate.real_bogus is False %}
+                    class="table-danger" 
+                    {% endif %}
+                >
+                    <td>{{ item.candidate.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ item.candidate.name }}</td>
+                    <td>{{ item.candidate.ra }}</td>
+                    <td>{{ item.candidate.dec }}</td>
+                    <td>{{ item.candidate.discovery_datetime|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <!-- Real/Bogus Buttons -->
+                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="real_bogus" value="real">
+                            <button type="submit" class="btn btn-sm btn-success" {% if candidate.real_bogus is True %}disabled{% endif %}>
+                                Real
+                            </button>
+                        </form>
+
+                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="real_bogus" value="bogus">
+                            <button type="submit" class="btn btn-sm btn-danger" {% if candidate.real_bogus is False %}disabled{% endif %}>
+                                Bogus
+                            </button>
+                        </form>
+                    </td>
+                    <td>
+                        {% if item.target %}
+                        <!-- Green "Target" button linking to the target detail page -->
+                        <a href="{% url 'targets:detail' item.target.id %}" class="btn btn-sm btn-success">
+                            Target
+                        </a>
+                        {% else %}
+                        <!-- Blue "Add Target" button -->
+                        <form method="POST" action="{% url 'candidates:add_target' %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <button type="submit" class="btn btn-sm btn-primary">Add Target</button>
+                        </form>
+                        {% endif %}
+
+                        <!-- Delete Button -->
+                        <form method="POST" action="{% url 'candidates:delete_candidate' %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">No candidates found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

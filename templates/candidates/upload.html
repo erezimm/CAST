@@ -1,0 +1,23 @@
+{% extends 'tom_common/base.html' %}
+{% block title %}Upload Candidates{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Upload Candidates</h1>
+
+    <!-- Display success or error messages -->
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %}" role="alert">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Upload</button>
+        <!-- <a href="{% url 'candidates:list' %}" class="btn btn-secondary">Cancel</a> -->
+    </form>
+</div>
+{% endblock %}
