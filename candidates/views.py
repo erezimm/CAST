@@ -1,10 +1,9 @@
-from django.shortcuts import render, redirect
-from django.contrib import messages
 from .forms import FileUploadForm
-from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate
+from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph
 from .models import Candidate
-from django.shortcuts import get_object_or_404
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.urls import reverse
 
 def upload_file_view(request):
     """
@@ -56,7 +55,7 @@ def candidate_list_view(request):
     """
     Display a list of candidates with a filter for real/bogus status.
     """
-    filter_value = request.GET.get('filter', 'neither')  # Get filter value from URL, default to 'all'
+    filter_value = request.GET.get('filter', 'all')  # Get filter value from URL, default to 'all'
 
     # Apply filtering based on the filter_value 
     if filter_value == 'real':
@@ -72,6 +71,7 @@ def candidate_list_view(request):
         {
             'candidate': candidate,
             'target': check_target_exists_for_candidate(candidate.id),  # Include Target if it exists
+            'graph': generate_photometry_graph(candidate)  # Generate photometry graph
         }
         for candidate in candidates
     ]
@@ -147,4 +147,17 @@ def update_real_bogus_view(request, candidate_id):
 
         candidate.save()
         messages.success(request, f"Updated {candidate.name} to {candidate.get_real_bogus_display()}.")
-    return redirect('candidates:list')
+
+    # Get the filter parameter from the request
+    filter_value = request.GET.get('filter', 'all')  # Default to 'neither' if no filter is provided
+
+    # Redirect to the candidate list with the current filter applied
+    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")
+
+def candidate_detail_view(request, candidate_id):
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    photometry = candidate.photometry.all()
+    return render(request, 'candidates/detail.html', {
+        'candidate': candidate,
+        'photometry': photometry
+    })

@@ -1,8 +1,9 @@
-{% extends 'tom_common/base.html' %}
+{% extends 'candidates/base_candidates.html' %}
 {% block title %}Candidate List{% endblock %}
 {% block content %}
-<div class="container mt-8">
-    <h1 class="mb-8">Candidate List</h1>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<div class="container-fluid mt-16">
+    <h1 class="mb-16">Candidate List</h1>
 
     <!-- Filter Dropdown -->
     <form method="GET" action="{% url 'candidates:list' %}" class="mb-4">
@@ -18,13 +19,13 @@
     </form>
 
     <div class="table-responsive">
-        <table class="table table-hover table-bordered">
+        <table class="table table-hover table-bordered table-striped w-100">
             <thead class="thead-light">
                 <tr>
                     <th>Date added</th>
                     <th>Name</th>
-                    <th>RA</th>
-                    <th>Dec</th>
+                    <th>Photometry</th>
+                    <th>Coordinates</th>
                     <th>Discovery date</th>
                     <th>Real/Bogus</th>
                     <th>Actions</th>
@@ -41,23 +42,31 @@
                 >
                     <td>{{ item.candidate.created_at|date:"Y-m-d H:i" }}</td>
                     <td>{{ item.candidate.name }}</td>
-                    <td>{{ item.candidate.ra }}</td>
-                    <td>{{ item.candidate.dec }}</td>
+                    <td>
+                        {% if item.graph %}
+                        <div style="width: 600px; height: 400px;">
+                            {{ item.graph|safe }}
+                        </div>
+                        {% else %}
+                        No photometry available.
+                        {% endif %}
+                    </td>
+                    <td>{{ item.candidate.ra }}, {{ item.candidate.dec }}</td>
                     <td>{{ item.candidate.discovery_datetime|date:"Y-m-d H:i" }}</td>
                     <td>
                         <!-- Real/Bogus Buttons -->
-                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="real_bogus" value="real">
-                            <button type="submit" class="btn btn-sm btn-success" {% if candidate.real_bogus is True %}disabled{% endif %}>
+                            <button type="submit" class="btn btn-sm btn-success" {% if item.candidate.real_bogus is True %}disabled{% endif %}>
                                 Real
                             </button>
                         </form>
 
-                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="real_bogus" value="bogus">
-                            <button type="submit" class="btn btn-sm btn-danger" {% if candidate.real_bogus is False %}disabled{% endif %}>
+                            <button type="submit" class="btn btn-sm btn-danger" {% if item.candidate.real_bogus is False %}disabled{% endif %}>
                                 Bogus
                             </button>
                         </form>

@@ -44,7 +44,7 @@
       {% target_unknown_statuses object %}
       {% target_buttons object %}
       {% target_data object %}
-      <!-- {% recent_photometry object limit=3 %} -->
+      {% recent_photometry object limit=3 %}
       {% if object.type == 'SIDEREAL' %}
       {% aladin_finderchart object %}
       {% endif %}
@@ -75,7 +75,7 @@
     <div class="tab-content">
       <div class="tab-pane active" id="observe">
         {% photometry_for_target target %}
-        <!-- {% get_photometry_data object %} -->
+        {% get_photometry_data object %}
         <h4>Observe</h4>
         {% observing_buttons object %}
         <hr/>
