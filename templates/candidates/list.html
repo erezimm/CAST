@@ -23,9 +23,10 @@
             <thead class="thead-light">
                 <tr>
                     <th>Date added</th>
+                    <!-- <th>Name</th> -->
                     <th>Name</th>
                     <th>Photometry</th>
-                    <th>Coordinates</th>
+                    <th>Coordinates (RA, DEC)</th>
                     <th>Discovery date</th>
                     <th>Real/Bogus</th>
                     <th>Actions</th>
@@ -41,7 +42,15 @@
                     {% endif %}
                 >
                     <td>{{ item.candidate.created_at|date:"Y-m-d H:i" }}</td>
-                    <td>{{ item.candidate.name }}</td>
+                    <!-- <td>{{ item.candidate.name }}</td> -->
+                    <td>
+                        {% if item.candidate.tns_name %}
+                        <a href="https://sandbox.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
+                            {{ item.candidate.tns_name }}
+                        </a>
+                        {% else %}
+                        {{ item.candidate.name }}
+                        {% endif %}
                     <td>
                         {% if item.graph %}
                         <div style="width: 600px; height: 400px;">
@@ -86,6 +95,17 @@
                         </form>
                         {% endif %}
 
+                        <!-- Send TNS Report Button -->
+                        {% if item.candidate.reported_by_LAST %}
+                        <button type="button" class="btn btn-sm btn-warning" disabled>Reported to TNS</button>
+                        {% else %}
+                        <form method="POST" action="{% url 'candidates:send_tns_report' item.candidate.id %}?filter={{ filter_value }}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <button type="submit" class="btn btn-sm btn-warning">Send TNS Report</button>
+                        </form>
+                        {% endif %}
+                        
                         <!-- Delete Button -->
                         <form method="POST" action="{% url 'candidates:delete_candidate' %}" style="display:inline;">
                             {% csrf_token %}
@@ -103,4 +123,4 @@
         </table>
     </div>
 </div>
-{% endblock %}
+{% endblock %}>

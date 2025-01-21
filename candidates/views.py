@@ -1,5 +1,5 @@
 from .forms import FileUploadForm
-from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph
+from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report
 from .models import Candidate
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -161,3 +161,21 @@ def candidate_detail_view(request, candidate_id):
         'candidate': candidate,
         'photometry': photometry
     })
+
+def send_tns_report_view(request, candidate_id):
+    """
+    Generates and sends a TNS report for a candidate.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
+
+    # Logic for generating and sending the TNS report
+    try:
+        # Example: Assume a function `send_tns_report(candidate)` sends the report
+        send_tns_report(candidate)
+        messages.success(request, f"TNS report successfully sent for {candidate.name}.")
+    except Exception as e:
+        messages.error(request, f"Failed to send TNS report for {candidate.name}: {e}")
+
+    # Redirect back to the filtered candidate list
+    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")

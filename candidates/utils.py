@@ -5,13 +5,14 @@ from django.shortcuts import get_object_or_404
 from django.db.models import ExpressionWrapper, FloatField
 from django.db.models.functions import ACos, Cos, Radians, Pi, Sin
 from django.utils.dateparse import parse_datetime
+from django.conf import settings
+from django.utils.timezone import now
+from django.utils.safestring import mark_safe
 from math import radians
 import os
 import json
-import json
-from django.utils.timezone import now
+import requests
 import plotly.graph_objs as go
-from django.utils.safestring import mark_safe
 
 def cone_search_filter_candidates(queryset, ra, dec, radius):
     """
@@ -277,10 +278,62 @@ def generate_photometry_graph(candidate):
             dtick=10,  # Adjust tick spacing as needed
             autorange="reversed",  # Reverse the x-axis
         ),
+        margin=dict(l=50, r=0, t=10, b=100),  # Tight margins
+        paper_bgcolor="rgba(0,0,0,0)",  # Transparent outer background
         template="plotly_white",
+        showlegend=False,  # Disable the legend
     )
 
     # Convert the graph to HTML for embedding in the template
     graph_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
     return mark_safe(graph_html)
+
+def tns_cone_search(ra, dec, radius=3.0):
+    """
+    Perform a cone search on the Transient Name Server.
+
+    Parameters:
+        ra (float): Right Ascension in degrees.
+        dec (float): Declination in degrees.
+        radius (float): Search radius in arcminutes.
+
+    Returns:
+        dict: The response data from the TNS.
+    """
+    # API endpoint for the cone searchtns_settings = settings.BROKERS.get('TNS', {})
+    TNS                 = "www.sandbox.wis-tns.org"
+    url_tns_api         = "https://" + TNS + "/api"
+    tns_settings = settings.BROKERS.get('TNS', {})
+    TNS_BOT_ID          = tns_settings.get('bot_id')
+    TNS_BOT_NAME        = tns_settings.get('bot_name')
+    TNS_API_KEY         = tns_settings.get('api_key')
+
+    endpoint = f"{url_tns_api}/get/search"
+    
+    # Headers required for the TNS API
+    tns_marker = 'tns_marker{"tns_id": "' + str(TNS_BOT_ID) + '", "type": "bot", "name": "' + TNS_BOT_NAME + '"}'
+    headers = {'User-Agent': tns_marker}
+
+    # Parameters for the cone search
+    payload = {
+        "api_key": TNS_API_KEY,
+        "data": json.dumps({
+            "ra": str(ra),
+            "dec": str(dec),
+            "radius": str(radius),
+            "units": "arcmin"
+        })
+    }
+    # Perform the request
+    try:
+        response = requests.post(endpoint, headers=headers, data=payload)
+        response.raise_for_status()  # Raise an error for bad status codes
+        return response.json()  # Parse the JSON response
+    except requests.RequestException as e:
+        print(f"Error during TNS cone search: {e}")
+        return None
+
+def send_tns_report(candidate):
+    return None
+
