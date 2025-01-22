@@ -4,7 +4,8 @@
 {% block content %}
 <div class="row">
   <div class="col-md-8">
-    <h2 class="text-center">Welcome to LAST TOM!</h2>
+    <h2 class="text-center">Welcome to CAST!</h2>
+    <h2 class="text-center"><small>The Coordinated Astronomical Survey Tracker</small></h2>
     <ul>
         <li>
           Check out the <a href="https://docs.google.com/document/d/1TaiwCzrG-WHzgUFbbVuyFd8j0ye62NqF6mF0bkpmJzc/edit?tab=t.0" title="LAST observer manual" target="_blank">LAST observer manual
@@ -15,6 +16,13 @@
         </li>
       </ul>
     <p class="text-center"><img src="{% static 'tom_common/img/last.png' %}" class="img-fluid mx-auto"></p>
+    <br/>
+    <div class="card">
+      <div class="card-header">
+        Latest Targets
+      </div>
+      {% recent_targets %}
+  </div>
     <!-- <ul>
       <li>
         Check out the <a href="https://tom-toolkit.readthedocs.io/en/stable/" title="TOM Toolkit home page" target="_blank">TOM
@@ -50,18 +58,12 @@
         frameborder="0">
     </iframe>
     </div>
+    
     <div class="card">
       <div class="card-header">
         Latest Comments
       </div>
       {% recent_comments %}
     </div>
-    <br/>
-    <div class="card">
-      <div class="card-header">
-        Latest Targets
-      </div>
-      {% recent_targets %}
-  </div>
 </div>
 {% endblock %}

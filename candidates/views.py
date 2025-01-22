@@ -1,9 +1,14 @@
 from .forms import FileUploadForm
 from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report
-from .models import Candidate
+from .models import Candidate,CandidateDataProduct
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.urls import reverse
+from datetime import timedelta
+from django.utils.timezone import now
+from django.utils.dateparse import parse_datetime
+
+from django.contrib.auth.decorators import login_required, user_passes_test
 
 def upload_file_view(request):
     """
@@ -51,12 +56,15 @@ def delete_candidate_view(request):
     # Redirect back to the candidate list
     return redirect('candidates:list')
 
+
+@login_required
+@user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())
 def candidate_list_view(request):
     """
     Display a list of candidates with a filter for real/bogus status.
     """
     filter_value = request.GET.get('filter', 'all')  # Get filter value from URL, default to 'all'
-
+    
     # Apply filtering based on the filter_value 
     if filter_value == 'real':
         candidates = Candidate.objects.filter(real_bogus=True).order_by('-created_at')
@@ -66,12 +74,35 @@ def candidate_list_view(request):
         candidates = Candidate.objects.filter(real_bogus__isnull=True).order_by('-created_at')
     else:  # 'all'
         candidates = Candidate.objects.all().order_by('-created_at')
+
+    # Get filter values from the request
+    start_datetime = request.GET.get('start_datetime')
+    end_datetime = request.GET.get('end_datetime')
+    if start_datetime:
+        start_datetime = parse_datetime(start_datetime)
+    # If parsing fails or no value is provided, apply default values
+    else:
+        current_time = now()
+        previous_day = (current_time - timedelta(days=1))
+        start_datetime = previous_day
+
+    if end_datetime:
+        end_datetime = parse_datetime(end_datetime)
+
+    # Apply datetime filtering
+    if start_datetime:
+        candidates = candidates.filter(created_at__gte=start_datetime)
+    if end_datetime:
+        candidates = candidates.filter(created_at__lte=end_datetime)
+    
+    cutout_types = ['ps1', 'ref', 'new', 'diff']
         
     candidate_status = [
         {
             'candidate': candidate,
             'target': check_target_exists_for_candidate(candidate.id),  # Include Target if it exists
-            'graph': generate_photometry_graph(candidate)  # Generate photometry graph
+            'graph': generate_photometry_graph(candidate),  # Generate photometry graph
+            'cutouts': CandidateDataProduct.objects.filter(candidate=candidate, data_product_type__in=cutout_types),
         }
         for candidate in candidates
     ]
@@ -79,6 +110,8 @@ def candidate_list_view(request):
     return render(request, 'candidates/list.html', {
         # 'candidates': candidates,
         'filter_value': filter_value, # Pass the current filter to the template
+        'start_datetime': start_datetime,
+        'end_datetime' : end_datetime,
         'candidate_status': candidate_status 
     })
 

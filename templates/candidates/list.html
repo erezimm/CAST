@@ -1,19 +1,38 @@
 {% extends 'candidates/base_candidates.html' %}
 {% block title %}Candidate List{% endblock %}
 {% block content %}
+
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <div class="container-fluid mt-16">
     <h1 class="mb-16">Candidate List</h1>
 
+    <!-- Date selection -->
+    <form method="GET" action="{% url 'candidates:list' %}" class="mb-4">
+        <div class="form-row">
+            <div class="col-md-4">
+                <label for="start_datetime">Start Date:</label>
+                <input type="datetime-local" id="start_datetime" name="start_datetime" class="form-control" 
+                       value="{{ start_datetime|date:'Y-m-d\\TH:i' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="end_datetime">End Date:</label>
+                <input type="datetime-local" id="end_datetime" name="end_datetime" class="form-control" 
+                       value="{{ end_datetime|date:'Y-m-d\\TH:i' }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </div>
+    </form>
     <!-- Filter Dropdown -->
     <form method="GET" action="{% url 'candidates:list' %}" class="mb-4">
         <div class="form-group">
             <label for="filter">Filter by Real/Bogus Status:</label>
             <select id="filter" name="filter" class="form-control form-control-sm" onchange="this.form.submit();">
+                <option value="all" {% if filter_value == 'all' %}selected{% endif %}>All</option>
                 <option value="neither" {% if filter_value == 'neither' %}selected{% endif %}>New</option>
                 <option value="real" {% if filter_value == 'real' %}selected{% endif %}>Real</option>
                 <option value="bogus" {% if filter_value == 'bogus' %}selected{% endif %}>Bogus</option>
-                <option value="all" {% if filter_value == 'all' %}selected{% endif %}>All</option>
             </select>
         </div>
     </form>
@@ -22,12 +41,11 @@
         <table class="table table-hover table-bordered table-striped w-100">
             <thead class="thead-light">
                 <tr>
-                    <th>Date added</th>
-                    <!-- <th>Name</th> -->
-                    <th>Name</th>
+                    <th>Details</th>
+                    <th>Cutouts</th>
                     <th>Photometry</th>
-                    <th>Coordinates (RA, DEC)</th>
-                    <th>Discovery date</th>
+                    <!-- <th>Coordinates (RA, DEC)</th> -->
+                    <!-- <th>Discovery date</th> -->
                     <th>Real/Bogus</th>
                     <th>Actions</th>
                 </tr>
@@ -41,16 +59,63 @@
                     class="table-danger" 
                     {% endif %}
                 >
-                    <td>{{ item.candidate.created_at|date:"Y-m-d H:i" }}</td>
-                    <!-- <td>{{ item.candidate.name }}</td> -->
                     <td>
-                        {% if item.candidate.tns_name %}
+                        <p><b>Discovery date (UTC):</b> {{ item.candidate.discovery_datetime|date:"Y-m-d H:i" }}</p>
+                        <p><b>Name:</b> {{ item.candidate.name }}</p>
+                        <p>{% if item.candidate.tns_name %}
+                            <b>IAU name:</b>
                         <a href="https://sandbox.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
                             {{ item.candidate.tns_name }}
                         </a>
-                        {% else %}
-                        {{ item.candidate.name }}
                         {% endif %}
+                        </p>
+                        <p><b>Coordinates (RA, DEC):</b> {{ item.candidate.ra }}, {{ item.candidate.dec }}</p>
+                        <p><b>Date added:</b> {{ item.candidate.created_at|date:"Y-m-d H:i" }}</p>
+                    
+                    </td>
+                    <!-- <td>{{ item.candidate.name }}</td> -->
+                    <td>
+                        {% if item.cutouts %}
+                            <!-- First row for general cutouts excluding Pan-STARRS -->
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 10px;">
+                                {% for cutout in item.cutouts %}
+                                    {% if cutout.data_product_type|lower != 'ps1' %}
+                                        <div style="text-align: center;">
+                                            <img src="{{ cutout.datafile.url }}" alt="{{ cutout.name }}" style="max-width: 100px; height: auto;">
+                                            <div>
+                                                <small>{{ cutout.data_product_type|title }}</small>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <!-- Second row for Pan-STARRS (PS1) and SDSS -->
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <!-- Pan-STARRS (PS1) -->
+                                {% for cutout in item.cutouts %}
+                                    {% if cutout.data_product_type|lower == 'ps1' %}
+                                        <div style="text-align: center;">
+                                            <img src="{{ cutout.datafile.url }}" alt="Pan-STARRS Cutout" style="max-width: 240px; height: auto;">
+                                            <div>
+                                                <small>Pan-STARRS</small>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                                <!-- SDSS -->
+                                <div style="text-align: center;">
+                                    <img
+                                    src="https://skyserver.sdss.org/dr16/SkyServerWS/ImgCutout/getjpeg?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}&scale=0.2&width=240&height=240&opt=G"
+                                    alt="SDSS Cutout" style="max-width: 240px; height: auto;">
+                                    <div>
+                                        <small>SDSS</small>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            No cutouts available.
+                        {% endif %}
+                    </td>
                     <td>
                         {% if item.graph %}
                         <div style="width: 600px; height: 400px;">
@@ -60,8 +125,6 @@
                         No photometry available.
                         {% endif %}
                     </td>
-                    <td>{{ item.candidate.ra }}, {{ item.candidate.dec }}</td>
-                    <td>{{ item.candidate.discovery_datetime|date:"Y-m-d H:i" }}</td>
                     <td>
                         <!-- Real/Bogus Buttons -->
                         <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}" style="display:inline;">

@@ -1,4 +1,4 @@
-from .models import Candidate,CandidatePhotometry
+from .models import Candidate,CandidatePhotometry,CandidateDataProduct,CandidateAlert
 from tom_targets.models import Target
 from tom_targets.utils import cone_search_filter
 from django.shortcuts import get_object_or_404
@@ -6,13 +6,26 @@ from django.db.models import ExpressionWrapper, FloatField
 from django.db.models.functions import ACos, Cos, Radians, Pi, Sin
 from django.utils.dateparse import parse_datetime
 from django.conf import settings
-from django.utils.timezone import now
+from django.core.files import File  # Import the File wrapper
+from django.utils.timezone import now#,get_current_timezone,make_aware,is_aware
 from django.utils.safestring import mark_safe
+from django.contrib.auth.models import Group
+from guardian.shortcuts import assign_perm
+from django.core.files.base import ContentFile
 from math import radians
 import os
 import json
 import requests
+from datetime import datetime
+import glob
+from io import BytesIO,StringIO
 import plotly.graph_objs as go
+from astropy.time import Time
+from django.core.files.base import ContentFile
+import numpy as np
+import pandas as pd
+from collections import OrderedDict
+import time
 
 def cone_search_filter_candidates(queryset, ra, dec, radius):
     """
@@ -58,6 +71,21 @@ def cone_search_filter_candidates(queryset, ra, dec, radius):
     # Annotate queryset with separation and filter by the radius
     return queryset.annotate(separation=separation).filter(separation__lte=radius)
 
+def create_candidate_cutouts(candidate, file_name, product_type):
+    file_path = os.path.join(settings.TRANSIENT_DIR+'cutouts', file_name)
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as file:
+            wrapped_file = File(file)  # Wrap the file object with Django's File class
+            wrapped_file.name = os.path.basename(file_path) # Set the file name to the base name of the path
+            CandidateDataProduct.objects.create(
+                candidate=candidate,
+                datafile=wrapped_file,
+                data_product_type=product_type,
+                name=f'{candidate.name}_{product_type}_cutout'
+            )
+    else:
+        print(f"Error: File {file_name} does not exist.")
+
 def check_candidate_exists_by_cone(ra, dec, radius_arcsec=3):
     """
     Checks if a candidate already exists in the database within a given radius.
@@ -72,9 +100,65 @@ def check_candidate_exists_by_cone(ra, dec, radius_arcsec=3):
     # Perform the cone search
     queryset = Candidate.objects.all()
     matching_candidates = cone_search_filter_candidates(queryset, ra, dec, radius_deg)
-
+    if matching_candidates.exists():
+        return matching_candidates.exists(), matching_candidates[0]
     # Return True if any matching candidates are found, False otherwise
-    return matching_candidates.exists()
+    return matching_candidates.exists(), None
+
+def fetch_ps1_cutout(ra, dec):
+    """
+    Fetches a PS1 color composite cutout image for a given RA/Dec.
+    :param ra: Right Ascension in degrees.
+    :param dec: Declination in degrees.
+    """
+    files_query_base_url = 'http://ps1images.stsci.edu/cgi-bin/ps1filenames.py'
+    params = {
+        "ra" : ra,
+        "dec" : dec,
+    }
+    try:
+        response = requests.get(files_query_base_url, params=params, timeout=30)
+        #print the response
+        data = response.text
+        # Load data into a pandas DataFrame
+        data_lines = data.split('\n')
+        header = data_lines[0].split()
+        rows = [line.split() for line in data_lines[1:] if line.strip()]
+
+        df = pd.DataFrame(rows, columns=header)
+
+        cutout_base_url = 'https://ps1images.stsci.edu/cgi-bin/fitscut.cgi?'
+        url = f'{cutout_base_url}?red={df[df["filter"] == "i"]["filename"].values[0]}&green={df[df["filter"] == "r"]["filename"].values[0]}&blue={df[df["filter"] == "g"]["filename"].values[0]}&x={ra}&y={dec}&size=240&wcs=1&asinh=True&autoscale=99.750000'
+
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        if response.status_code == 200:
+            return ContentFile(BytesIO(response.content).read(), name=f"ps1_cutout.{format}")
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to fetch PS1 cutout: {e}")
+    return None
+
+def save_alert(candidate,discovery_datetime,filename):
+    """
+    Save the candidate as an alert in the database.
+    :param candidate: Candidate instance
+    :return: The alert instance
+    """
+    attributes = filename.split("_")
+    mount = attributes[0].split(".")[2]
+    camera = attributes[0].split(".")[3]
+    fieldid = attributes[3]
+    subimage = attributes[6]
+    alert = CandidateAlert.objects.create(
+        candidate = candidate,
+        filename = filename,
+        discovery_datetime = discovery_datetime,
+        mount = mount,
+        camera = camera,
+        fieldid = fieldid,
+        subimage = subimage,
+    )
+    return alert
 
 def process_json_file(file):
     """
@@ -95,56 +179,125 @@ def process_json_file(file):
 
 
     at_report = data.get('at_report', {})
+    last_report = data.get('last_report', {})
     ra = at_report.get('RA', {}).get('value')
     dec = at_report.get('Dec', {}).get('value')
     # name = f"LAST_{ra}_{dec}"  # Default name (or extract from JSON if available)
     discovery_datetime = at_report.get('discovery_datetime',{})[0]
     discovery_datetime = discovery_datetime[:discovery_datetime.find('UTC')-1]
     
-    if check_candidate_exists_by_cone(float(ra), float(dec), radius_arcsec=3):
+    candidate_exists, existing_candidate = check_candidate_exists_by_cone(float(ra), float(dec), radius_arcsec=3)
+    if candidate_exists:
+        save_alert(existing_candidate,discovery_datetime,file.name)
         return None
 
     if ra and dec:
         # Save to the database
         candidate = Candidate.objects.create(ra=ra, dec=dec,discovery_datetime=discovery_datetime)
+        save_alert(candidate,discovery_datetime,file.name)
+        #save the json file as a data product
+        CandidateDataProduct.objects.create(
+                candidate=candidate,
+                datafile=file,
+                data_product_type='json',
+                name=file.name
+            )
         candidates_added += 1
 
         # 1. Handle non-detection photometry
-        non_detection = at_report.get('non_detection', {})
-        if non_detection:
-            obs_date = parse_datetime(non_detection.get('obsdate', [None])[0].replace(" UTC", ""))
-            limit = non_detection.get('flux', None)
-            filter_value = non_detection.get('filter_value', None)
-            telescope = "LAST"  # You can map instrument_value to actual telescope name
-            instrument = "LAST-CAM"  # You can map instrument_value to actual instrument name
+        if last_report == {}:
+            non_detection = at_report.get('non_detection', {})
+            if non_detection:
+                obs_date = parse_datetime(non_detection.get('obsdate', [None])[0].replace(" UTC", ""))
+                limit = non_detection.get('flux', None)
+                filter_value = non_detection.get('filter_value', None)
+                telescope = "LAST"  # You can map instrument_value to actual telescope name
+                instrument = "LAST-CAM"  # You can map instrument_value to actual instrument name
 
-            CandidatePhotometry.objects.create(
-                candidate=candidate,
-                obs_date=obs_date,
-                limit = limit,
-                filter_band=str(filter_value),  # Use a mapping if needed to human-readable filter names
-                telescope=telescope,
-                instrument=instrument
-            )
-            
-        photometry_data = at_report.get('photometry', {}).get('photometry_group', {})
-        obs_date = photometry_data.get('obsdate', [None])[0]
-        if obs_date:
-            obs_date = parse_datetime(obs_date.replace(" UTC", ""))
-            magnitude = photometry_data.get('flux', None)
-            magnitude_error = 0  # Add logic to calculate or store flux error if available
-            filter_value = photometry_data.get('filter_value', None)
-            telescope = "LAST"  # You can map instrument_value to actual telescope name
-            instrument = "LAST-CAM"  # You can map instrument_value to actual instrument name
+                CandidatePhotometry.objects.create(
+                    candidate=candidate,
+                    obs_date=obs_date,
+                    limit = limit,
+                    filter_band=str(filter_value),  # Use a mapping if needed to human-readable filter names
+                    telescope=telescope,
+                    instrument=instrument
+                )
 
-            CandidatePhotometry.objects.create(
+            photometry_data = at_report.get('photometry', {}).get('photometry_group', {})
+            obs_date = photometry_data.get('obsdate', [None])[0]
+            if obs_date:
+                obs_date = parse_datetime(obs_date.replace(" UTC", ""))
+                magnitude = photometry_data.get('flux', None)
+                magnitude_error = 0  # Add logic to calculate or store flux error if available
+                filter_value = photometry_data.get('filter_value', None)
+                telescope = "LAST"  # You can map instrument_value to actual telescope name
+                instrument = "LAST-CAM"  # You can map instrument_value to actual instrument name
+
+                CandidatePhotometry.objects.create(
+                    candidate=candidate,
+                    obs_date=obs_date,
+                    magnitude=magnitude,
+                    magnitude_error=magnitude_error,
+                    filter_band=str(filter_value),  # Use a mapping if needed to human-readable filter names
+                    telescope=telescope,
+                    instrument=instrument
+                )
+
+        if last_report != {}:
+            detections_jd = np.array(last_report.get('detections_jd', {}))
+            detections = last_report.get('detections_mag', {})
+            detections_magerr = last_report.get('detections_magerr', {})
+            nondetections_jd = last_report.get('nondetections_jd', {})
+            nondetections_mag = last_report.get('nondetections_mag', {})
+
+            for i, jd in enumerate(detections_jd):
+                obs_date = Time(jd,format='jd')
+                # print(obs_date.iso)
+                magnitude = detections[i]
+                magnitude_error = detections_magerr[i]
+                CandidatePhotometry.objects.create(
+                    candidate=candidate,
+                    obs_date=obs_date.iso,
+                    magnitude=magnitude,
+                    magnitude_error=magnitude_error,
+                    filter_band='clear',  # Use a mapping if needed to human-readable filter names
+                    telescope="LAST",
+                    instrument="LAST-CAM"
+                )
+            for i, jd in enumerate(nondetections_jd):
+                obs_date = Time(jd,format='jd')
+                magnitude = nondetections_mag[i]
+                CandidatePhotometry.objects.create(
+                    candidate=candidate,
+                    obs_date=obs_date.iso,
+                    limit = magnitude,
+                    filter_band='clear',  # Use a mapping if needed to human-readable filter names
+                    telescope="LAST",
+                    instrument="LAST-CAM"
+                )
+
+            #Reference images ingestion
+            ref_cutout = last_report.get('ref_cutout')
+            new_cutout = last_report.get('new_cutout')
+            diff_cutout = last_report.get('diff_cutout')
+
+            if ref_cutout:
+                create_candidate_cutouts(candidate, ref_cutout, 'ref')
+            if new_cutout:
+                create_candidate_cutouts(candidate, new_cutout, 'new')
+            if diff_cutout:
+                create_candidate_cutouts(candidate, diff_cutout, 'diff')
+        #PS1 cutout
+        try:
+            ps1_cutout = fetch_ps1_cutout(ra, dec)
+        except Exception as e:
+            ps1_cutout = None
+        if ps1_cutout:
+            CandidateDataProduct.objects.create(
                 candidate=candidate,
-                obs_date=obs_date,
-                magnitude=magnitude,
-                magnitude_error=magnitude_error,
-                filter_band=str(filter_value),  # Use a mapping if needed to human-readable filter names
-                telescope=telescope,
-                instrument=instrument
+                datafile=ps1_cutout,
+                data_product_type='ps1',
+                name=f"{candidate.name} PS1 cutout",
             )
 
     return candidates_added
@@ -155,7 +308,19 @@ def process_multiple_json_files(directory_path):
     :param directory_path: Path to the directory containing JSON files
     :return: The total number of candidates successfully added
     """
-    json_files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
+    # json_files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
+    last_candidate_alert = CandidateAlert.objects.order_by('-discovery_datetime').first()
+    process_after_date = last_candidate_alert.created_at if last_candidate_alert else datetime.min
+
+    # computer_time_zone = zoneinfo.ZoneInfo("UTC")
+    # Convert process_after_date to a naive Python datetime object (strip timezone), notice the timezone is currently hardcoded to "Asia/Jerusalem"
+    if process_after_date.tzinfo is not None:
+        process_after_date = process_after_date.replace(tzinfo=None)
+    print(process_after_date)
+    json_files = [
+        file for file in glob.glob(os.path.join(directory_path, "*.json"))
+        if datetime.fromtimestamp(os.path.getmtime(file)) > process_after_date
+    ]
     total_candidates_added = 0
 
     for json_file in json_files:
@@ -194,23 +359,41 @@ def check_target_exists_for_candidate(candidate_id, radius_arcsec=3):
     # Return the first matching target if any, or None
     return matching_targets.first()
 
-def add_candidate_as_target(candidate_id):
+def construct_photometry_file(candidate):
+    return None
+
+def add_candidate_as_target(candidate_id, group_name='LAST general'):
     """
-    Adds a candidate as a TOM target if it doesn't already exist.
+    Adds a candidate as a TOM target if it doesn't already exist and assigns it to a specific group.
     :param candidate_id: The ID of the candidate to add as a target.
+    :param group_name: The name of the group to assign the target to.
     :return: The newly created or existing Target object.
     """
+    # Check if the target already exists
     existing_target = check_target_exists_for_candidate(candidate_id)
     if existing_target:
-        return existing_target  # If target exists, return it without creating a new one
+        return existing_target  # If the target exists, return it
 
+    # Retrieve the candidate
     candidate = get_object_or_404(Candidate, id=candidate_id)
+
+    # Retrieve or create the group
+    
+    group, _ = Group.objects.get_or_create(name=group_name)
+
+    # Create the new target
     target = Target.objects.create(
         name=candidate.name,
         type=Target.SIDEREAL,  # Assuming sidereal targets
         ra=candidate.ra,
         dec=candidate.dec,
     )
+
+    # Assign object-level permissions to the group
+    assign_perm('tom_targets.view_target', group, target)
+    assign_perm('tom_targets.change_target', group, target)
+    assign_perm('tom_targets.delete_target', group, target)
+
     return target
 
 
@@ -234,12 +417,12 @@ def generate_photometry_graph(candidate):
     today = now()
 
     # Prepare data for detections
-    detection_days_ago = [(today - p.obs_date).days for p in detections]
+    detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in detections]
     detection_magnitudes = [p.magnitude for p in detections]
     detection_errors = [p.magnitude_error for p in detections]
 
     # Prepare data for non-detections
-    non_detection_days_ago = [(today - p.obs_date).days for p in non_detections]
+    non_detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in non_detections]
     non_detection_limits = [p.limit for p in non_detections]
 
     # Create the Plotly graph
@@ -254,7 +437,7 @@ def generate_photometry_graph(candidate):
             array=detection_errors,
             visible=True
         ),
-        mode='markers+lines',
+        mode='markers',
         marker=dict(symbol='circle', size=8, color='#636efa'),
         name=f"Detections"
     ))
@@ -275,12 +458,12 @@ def generate_photometry_graph(candidate):
         yaxis=dict(autorange="reversed"),  # Magnitude is brighter for lower values
         xaxis=dict(
             title="Days Ago",
-            dtick=10,  # Adjust tick spacing as needed
+            # dtick=1,  # Adjust tick spacing as needed
             autorange="reversed",  # Reverse the x-axis
         ),
         margin=dict(l=50, r=0, t=10, b=100),  # Tight margins
         paper_bgcolor="rgba(0,0,0,0)",  # Transparent outer background
-        template="plotly_white",
+        # template="plotly_white",
         showlegend=False,  # Disable the legend
     )
 
@@ -302,7 +485,7 @@ def tns_cone_search(ra, dec, radius=3.0):
         dict: The response data from the TNS.
     """
     # API endpoint for the cone searchtns_settings = settings.BROKERS.get('TNS', {})
-    TNS                 = "www.sandbox.wis-tns.org"
+    TNS                 = "sandbox.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')
@@ -334,6 +517,148 @@ def tns_cone_search(ra, dec, radius=3.0):
         print(f"Error during TNS cone search: {e}")
         return None
 
-def send_tns_report(candidate):
-    return None
+def convert_datetime_tns(dt_str):
+    """
+    Converts the json file dates that Ruslan makes to the TNS format.
+    """
+    t = Time(dt_str.strip(' UTC'), format='iso', scale='utc')
+    # Get the fractional day representation
+    fractional_day = t.mjd - int(t.mjd) #+ 0.5*random.random()  # Julian date fraction
+    date_str = t.iso.split(" ")[0]  # Extract just the date part (YYYY-MM-DD)
 
+    # Combine the date and the fractional day
+    fractional_time = f"{date_str}.{str(fractional_day)[2:7]}"
+
+    return fractional_time
+
+def transform_json_tns(input_data):
+    """
+    Transform the current input JSON data to the desired format for the TNS API.
+    The input data currently does not have the correct format for the TNS API (as of Dec 2024).
+
+    Parameters:
+        input_data (dict): The input JSON data.
+
+    Returns:
+        dict: The transformed JSON data
+    """
+    
+    return {
+        "at_report": {
+            "0": {
+                "ra": {
+                    "value": str(input_data["at_report"]["RA"]["value"])
+                },
+                "dec": {
+                    "value": f"{str(input_data['at_report']['Dec']['value'])}"
+                },
+                "reporting_group_id": input_data["at_report"]["reporting_group_id"],
+                "discovery_data_source_id": input_data["at_report"]["discovery_data_source_id"],
+                "reporter": input_data["at_report"]["reporter"],
+                "discovery_datetime": convert_datetime_tns(input_data["at_report"]["discovery_datetime"][0]),
+                "at_type": input_data["at_report"]["at_type"],
+                "non_detection": {
+                    "obsdate": convert_datetime_tns(input_data["at_report"]["non_detection"]["obsdate"][0]),
+                    "limiting_flux": input_data["at_report"]["non_detection"]["flux"],
+                    "flux_units": input_data["at_report"]["non_detection"]["flux_units"],
+                    "filter_value": input_data["at_report"]["non_detection"]["filter_value"],
+                    "instrument_value": input_data["at_report"]["non_detection"]["instrument_value"],
+                    "exptime": input_data["at_report"]["non_detection"]["exptime"]
+                },
+                "photometry": {
+                    "photometry_group": {
+                        "0": {
+                            "obsdate": convert_datetime_tns(input_data["at_report"]["photometry"]["photometry_group"]["obsdate"][0]),
+                            "flux": input_data["at_report"]["photometry"]["photometry_group"]["flux"],
+                            "limiting_flux": "",
+                            "flux_units": input_data["at_report"]["photometry"]["photometry_group"]["flux_units"],
+                            "filter_value": input_data["at_report"]["photometry"]["photometry_group"]["filter_value"],
+                            "instrument_value": input_data["at_report"]["photometry"]["photometry_group"]["instrument_value"],
+                            "exptime": input_data["at_report"]["photometry"]["photometry_group"]["exptime"]
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+def send_json_tns_report(report):
+    TNS                 = "sandbox.wis-tns.org"
+    url_tns_api         = "https://" + TNS + "/api"
+    tns_settings = settings.BROKERS.get('TNS', {})
+    TNS_BOT_ID          = tns_settings.get('bot_id')
+    TNS_BOT_NAME        = tns_settings.get('bot_name')
+    TNS_API_KEY         = tns_settings.get('api_key')
+    
+    json_url = url_tns_api + "/set/bulk-report"
+    tns_marker = 'tns_marker{"tns_id": "' + str(TNS_BOT_ID) + '", "type": "bot", "name": "' + TNS_BOT_NAME + '"}'
+    headers = {'User-Agent': tns_marker}
+    json_read = json.dumps(report, indent = 4)
+    json_data = {'api_key': TNS_API_KEY, 'data': json_read}
+    response = requests.post(json_url, headers = headers, data = json_data)
+    return response
+
+
+def send_tns_reply(id_report):
+    TNS                 = "sandbox.wis-tns.org"
+    url_tns_api         = "https://" + TNS + "/api"
+    tns_settings = settings.BROKERS.get('TNS', {})
+    TNS_BOT_ID          = tns_settings.get('bot_id')
+    TNS_BOT_NAME        = tns_settings.get('bot_name')
+    TNS_API_KEY         = tns_settings.get('api_key')
+    
+    reply_url = url_tns_api + "/get/bulk-report-reply"
+    tns_marker = 'tns_marker{"tns_id": "' + str(TNS_BOT_ID) + '", "type": "bot", "name": "' + TNS_BOT_NAME + '"}'
+    headers = {'User-Agent': tns_marker}
+    reply_data = {'api_key': TNS_API_KEY, 'report_id': id_report}
+    response = requests.post(reply_url, headers = headers, data = reply_data,timeout=30)
+    return response
+
+def send_tns_report(candidate):
+    """
+    Generate a TNS report based on the original json file
+    :param candidate: Candidate instance
+    :return: response from the TNS
+    """
+    if candidate.reported_by_LAST:
+        return None
+    else:
+        dataproduct = CandidateDataProduct.objects.filter(candidate=candidate,data_product_type='json').first()
+        file = dataproduct.datafile
+        file_content = file.read().decode('utf-8')  # Decode to string
+        data = json.loads(file_content)  # Parse the JSON content
+        transformed_json = json.dumps(transform_json_tns(data))
+        report = json.loads(StringIO(transformed_json).read(), object_pairs_hook = OrderedDict)
+        response = send_json_tns_report(report)
+        if response.status_code == 200:
+            json_response = response.json()
+            print(json_response)
+            report_id = json_response['data']['report_id']
+            time.sleep(5)
+            response = send_tns_reply(report_id)
+            print(response.json())
+            if response.status_code == 400:
+                feedback = json.dumps(response.json()['data']['feedback'], indent = 4)
+                CandidateDataProduct.objects.create(
+                candidate=candidate,
+                datafile=ContentFile(feedback),
+                data_product_type='tns',
+                name=f'failed_tns_{report_id}.json'
+                )
+                print("hello")
+            if response.status_code == 200:
+                feedback_data = response.json()['data']['feedback']
+                objname = feedback_data['at_report'][0].get('101', {}).get('objname', 'No objname found')
+                if objname == 'No objname found':
+                    objname = feedback_data['at_report'][0].get('100', {}).get('objname', 'No objname found')
+                feedback = json.dumps(response.json()['data']['feedback'], indent = 4)
+                #Save the feedback
+                CandidateDataProduct.objects.create(
+                candidate=candidate,
+                datafile=ContentFile(feedback),
+                data_product_type='tns',
+                name=f'tns_{report_id}.json'
+                )
+                candidate.tns_name = objname
+                candidate.reported_by_LAST = True
+                candidate.save()

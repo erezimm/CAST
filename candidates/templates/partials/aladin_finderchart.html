@@ -1,0 +1,37 @@
+<!-- include Aladin Lite CSS file -->
+<link rel="stylesheet" href="//aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" />
+
+<!-- Aladin Viewer and Controls -->
+<div class="aladin-container" data-ra="{{ candidate.ra }}" data-dec="{{ candidate.dec }}">
+  <div class="aladin-lite" style="width:300px;height:300px;"></div>
+</div>
+
+<script src="//aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Find all Aladin containers
+    document.querySelectorAll('.aladin-container').forEach((container) => {
+      const ra = parseFloat(container.dataset.ra);
+      const dec = parseFloat(container.dataset.dec);
+
+      // Initialize Aladin instance
+      const aladinElement = container.querySelector('.aladin-lite');
+      const aladin = A.aladin(aladinElement, {
+        survey: "P/DSS2/color",
+        fov: 0.1, // Default FOV
+        showReticle: false,
+        target: `${ra} ${dec}`,
+        showGotoControl: false,
+        showZoomControl: false,
+      });
+
+      // Add a circle marker for the target
+      const circleLayer = A.graphicOverlay({ name: "Target Annotation", color: "red", lineWidth: 2 });
+      aladin.addOverlay(circleLayer);
+
+      // Draw the circle around the target
+      const circleRadiusDeg = 0.0025; // Adjust size of the circle
+      circleLayer.add(A.circle(ra, dec, circleRadiusDeg));
+    });
+  });
+</script>

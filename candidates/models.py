@@ -2,8 +2,11 @@ from django.db import models
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from django.conf import settings
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 import requests
 import json
+import os
 
 def tns_cone_search(ra, dec, radius=2.0):
     """
@@ -43,7 +46,7 @@ def tns_cone_search(ra, dec, radius=2.0):
     }
     # Perform the request
     try:
-        response = requests.post(endpoint, headers=headers, data=payload)
+        response = requests.post(endpoint, headers=headers, data=payload, timeout=10)
         response.raise_for_status()  # Raise an error for bad status codes
         return response.json()  # Parse the JSON response
     except requests.RequestException as e:
@@ -133,6 +136,7 @@ class Candidate(models.Model):
                     reply = result['data']
                     phot = reply['photometry']
                     for p in phot:
+                        print(p['instrument']['name'])
                         # logger.debug(f'photometry: {p}')
                         if p['instrument']['name'] == 'LAST-Cam':
                             return True, objname
@@ -147,6 +151,8 @@ class Candidate(models.Model):
             else:
                 return False, None
         except requests.RequestException as e:
+            return False, None
+        except Exception as e:
             return False, None
 
 
@@ -178,6 +184,10 @@ class CandidatePhotometry(models.Model):
         return f"{self.candidate.name} - {self.obs_date} - {self.filter_band}"
 
 
+def candidate_data_product_path(instance, filename):
+    return f'candidates/{instance.candidate.name}/{filename}'
+            
+
 class CandidateDataProduct(models.Model):
     candidate = models.ForeignKey(
         Candidate,
@@ -185,18 +195,60 @@ class CandidateDataProduct(models.Model):
         related_name='data_products',
         null=False
     )
-    datafile = models.FileField(upload_to=f'data/candidates/{candidate.name}')
-    data_product_type = models.CharField(max_length=50, choices=[('cutout', 'Cutout'), ('other', 'Other')])
+    datafile = models.FileField(upload_to=candidate_data_product_path, blank=True, null=True)
+    data_product_type = models.CharField(max_length=50, choices=[('ref', 'ref'), ('new', 'new'), ('diff','diff'), ('ps1','ps1'),('json','json'),('tns_report','tns_report')])
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def delete(self, *args, **kwargs):
+        """
+        Override the delete method to ensure the associated file is deleted.
+        """
+        if self.datafile and os.path.isfile(self.datafile.path):
+            try:
+                os.remove(self.datafile.path)
+            except Exception as e:
+                print(f"Error deleting file {self.datafile.path}: {e}")
+        super().delete(*args, **kwargs)
+
     def __str__(self):
         return f"{self.name} (Candidate: {self.candidate.name})"
 
-class ingested_candidate_file(models.Model):
-    file_name = models.CharField(max_length=100)
-    ingested_at = models.DateTimeField(auto_now_add=True)
+# Signal to delete associated files when a CandidateDataProduct is deleted
+@receiver(post_delete, sender=CandidateDataProduct)
+def delete_datafile(sender, instance, **kwargs):
+    """
+    Deletes the file associated with a CandidateDataProduct when the instance is deleted.
+    """
+    if instance.datafile and os.path.isfile(instance.datafile.path):
+        try:
+            os.remove(instance.datafile.path)
+        except Exception as e:
+            print(f"Error deleting file {instance.datafile.path}: {e}")
+
+# Signal to delete associated data products when a Candidate is deleted
+@receiver(post_delete, sender=Candidate)
+def delete_candidate_data_products(sender, instance, **kwargs):
+    """
+    Deletes all data products associated with a Candidate when the Candidate is deleted.
+    """
+    data_products = CandidateDataProduct.objects.filter(candidate=instance)
+    for data_product in data_products:
+        data_product.delete()
+
+class CandidateAlert(models.Model):
+    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name="alert")
+    filename = models.CharField(max_length=100, null=True, blank=True)
+    discovery_datetime = models.DateTimeField(null=True, blank=True)
+    fieldid = models.IntegerField(null=True, blank=True)
+    subimage = models.IntegerField(null=True, blank=True)
+    mount = models.IntegerField(null=True, blank=True)
+    camera = models.IntegerField(null=True, blank=True)
+    score = models.FloatField(null=True, blank=True)
+    reference = models.CharField(max_length=100, null=True, blank=True)
+    reference_time = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return self.file_name
