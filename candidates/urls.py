@@ -12,5 +12,6 @@ urlpatterns = [
     path('cone_search/', views.cone_search_view, name='cone_search'),  # Cone search URL
     path('update/<int:candidate_id>/', views.update_real_bogus_view, name='update_real_bogus'),
     path('send_tns/<int:candidate_id>/', views.send_tns_report_view, name='send_tns_report'),
+    path('update_cutouts/<int:candidate_id>/', views.update_cutouts_view, name='update_candidate_cutouts')
     
 ]

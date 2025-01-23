@@ -1,6 +1,6 @@
 from .forms import FileUploadForm
-from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report
-from .models import Candidate,CandidateDataProduct
+from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report,update_candidate_cutouts
+from .models import Candidate,CandidateDataProduct,CandidateAlert
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.urls import reverse
@@ -72,6 +72,10 @@ def candidate_list_view(request):
         candidates = Candidate.objects.filter(real_bogus=False).order_by('-created_at')
     elif filter_value == 'neither':
         candidates = Candidate.objects.filter(real_bogus__isnull=True).order_by('-created_at')
+    elif filter_value == 'tns_reported':
+        candidates = Candidate.objects.filter(reported_by_LAST=True).order_by('-created_at')
+    elif filter_value == 'tns_not_reported':
+        candidates = Candidate.objects.filter(reported_by_LAST=False).order_by('-created_at')
     else:  # 'all'
         candidates = Candidate.objects.all().order_by('-created_at')
 
@@ -96,13 +100,14 @@ def candidate_list_view(request):
         candidates = candidates.filter(created_at__lte=end_datetime)
     
     cutout_types = ['ps1', 'ref', 'new', 'diff']
-        
+
     candidate_status = [
         {
             'candidate': candidate,
             'target': check_target_exists_for_candidate(candidate.id),  # Include Target if it exists
             'graph': generate_photometry_graph(candidate),  # Generate photometry graph
             'cutouts': CandidateDataProduct.objects.filter(candidate=candidate, data_product_type__in=cutout_types),
+            'last_alert': CandidateAlert.objects.filter(candidate=candidate).order_by('-created_at').first()
         }
         for candidate in candidates
     ]
@@ -209,6 +214,23 @@ def send_tns_report_view(request, candidate_id):
         messages.success(request, f"TNS report successfully sent for {candidate.name}.")
     except Exception as e:
         messages.error(request, f"Failed to send TNS report for {candidate.name}: {e}")
+
+    # Redirect back to the filtered candidate list
+    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")
+
+def update_cutouts_view(request, candidate_id):
+    """
+    Updates the cutouts for a candidate.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
+
+    try:
+        # Example: Assume a function `send_tns_report(candidate)` sends the report
+        update_candidate_cutouts(candidate)
+        messages.success(request, f"cutouts have been updated for {candidate.name}.")
+    except Exception as e:
+        messages.error(request, f"Failed to update cutouts for {candidate.name}: {e}")
 
     # Redirect back to the filtered candidate list
     return redirect(f"{reverse('candidates:list')}?filter={filter_value}")

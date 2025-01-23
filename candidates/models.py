@@ -59,7 +59,6 @@ class Candidate(models.Model):
     dec = models.FloatField()   # Declination
     file_source = models.FileField(upload_to='candidate_files/')  # Optional: To track file origin
     discovery_datetime = models.DateTimeField(null=True, blank=True)
-    # image = models.ImageField(upload_to='candidate_images/', null=True, blank=True)  # Image field
     real_bogus = models.BooleanField(
         null=True,  # Allows for a "neither" state
         blank=True,
@@ -249,6 +248,9 @@ class CandidateAlert(models.Model):
     reference = models.CharField(max_length=100, null=True, blank=True)
     reference_time = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    ref_cutout_filename = models.CharField(max_length=255, null=True, blank=True)
+    new_cutout_filename = models.CharField(max_length=255, null=True, blank=True)
+    diff_cutout_filename = models.CharField(max_length=255, null=True, blank=True)
     
     def __str__(self):
-        return self.file_name
+        return self.candidate.name

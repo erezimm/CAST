@@ -27,10 +27,12 @@
     <!-- Filter Dropdown -->
     <form method="GET" action="{% url 'candidates:list' %}" class="mb-4">
         <div class="form-group">
-            <label for="filter">Filter by Real/Bogus Status:</label>
+            <label for="filter">Filters:</label>
             <select id="filter" name="filter" class="form-control form-control-sm" onchange="this.form.submit();">
                 <option value="all" {% if filter_value == 'all' %}selected{% endif %}>All</option>
                 <option value="neither" {% if filter_value == 'neither' %}selected{% endif %}>New</option>
+                <option value="tns_not_reported" {% if filter_value == 'tns_not_reported' %}selected{% endif %}>Not reported to TNS</option>
+                <option value="tns_reported" {% if filter_value == 'tns_reported' %}selected{% endif %}>Reported to TNS</option>
                 <option value="real" {% if filter_value == 'real' %}selected{% endif %}>Real</option>
                 <option value="bogus" {% if filter_value == 'bogus' %}selected{% endif %}>Bogus</option>
             </select>
@@ -64,13 +66,17 @@
                         <p><b>Name:</b> {{ item.candidate.name }}</p>
                         <p>{% if item.candidate.tns_name %}
                             <b>IAU name:</b>
-                        <a href="https://sandbox.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
+                        <a href="https://www.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
                             {{ item.candidate.tns_name }}
                         </a>
                         {% endif %}
                         </p>
-                        <p><b>Coordinates (RA, DEC):</b> {{ item.candidate.ra }}, {{ item.candidate.dec }}</p>
+                        <p><b>Coordinates (RA, DEC):</b> {{ item.candidate.ra |floatformat:-5 }}, {{ item.candidate.dec |floatformat:-5}}</p>
+                        <p><b>Score:</b> {{ item.last_alert.score |floatformat:-2 }}</p>
+                        <p><b>mount, camera:</b> {{ item.last_alert.mount }}, {{ item.last_alert.camera }}</p>
+                        <p><b>field, subimage:</b> {{ item.last_alert.fieldid }}, {{ item.last_alert.subimage }}</p>
                         <p><b>Date added:</b> {{ item.candidate.created_at|date:"Y-m-d H:i" }}</p>
+                        <p><b>Last alert:</b> {{ item.last_alert.created_at|date:"Y-m-d H:i" }}</p>
                     
                     </td>
                     <!-- <td>{{ item.candidate.name }}</td> -->
@@ -81,7 +87,7 @@
                                 {% for cutout in item.cutouts %}
                                     {% if cutout.data_product_type|lower != 'ps1' %}
                                         <div style="text-align: center;">
-                                            <img src="{{ cutout.datafile.url }}" alt="{{ cutout.name }}" style="max-width: 100px; height: auto;">
+                                            <img src="{{ cutout.datafile.url }}" alt="{{ cutout.name }}" style="max-width: 240px; height: auto;">
                                             <div>
                                                 <small>{{ cutout.data_product_type|title }}</small>
                                             </div>
@@ -157,10 +163,25 @@
                             <button type="submit" class="btn btn-sm btn-primary">Add Target</button>
                         </form>
                         {% endif %}
+                        <!-- update cutous Button -->
+                        <form method="POST" action="{% url 'candidates:update_candidate_cutouts' item.candidate.id %}?filter={{ filter_value }}%}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <button type="submit" class="btn btn-sm btn-info">Update Cutouts</button>
+                        </form>
 
+                        <!-- Check Simbad-->
+                        <a href="http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=1&Radius=3&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord={{ item.candidate.ra }} {{ item.candidate.dec }}" 
+                        class="btn btn-sm btn-secondary text-white" 
+                        style="background-color: rgb(195, 40, 195); border-color: rgb(195, 40, 195);" 
+                        target="_blank">
+                         Simbad Lookup
+                        </a>
                         <!-- Send TNS Report Button -->
                         {% if item.candidate.reported_by_LAST %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Reported to TNS</button>
+                        {% elif item.candidate.real_bogus is False %}
+                        <button type="button" class="btn btn-sm btn-warning" disabled>Target is Bogus</button>
                         {% else %}
                         <form method="POST" action="{% url 'candidates:send_tns_report' item.candidate.id %}?filter={{ filter_value }}" style="display:inline;">
                             {% csrf_token %}
@@ -168,7 +189,6 @@
                             <button type="submit" class="btn btn-sm btn-warning">Send TNS Report</button>
                         </form>
                         {% endif %}
-                        
                         <!-- Delete Button -->
                         <form method="POST" action="{% url 'candidates:delete_candidate' %}" style="display:inline;">
                             {% csrf_token %}

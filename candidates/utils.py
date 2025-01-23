@@ -12,6 +12,7 @@ from django.utils.safestring import mark_safe
 from django.contrib.auth.models import Group
 from guardian.shortcuts import assign_perm
 from django.core.files.base import ContentFile
+from tom_dataproducts.models import ReducedDatum
 from math import radians
 import os
 import json
@@ -138,32 +139,105 @@ def fetch_ps1_cutout(ra, dec):
         print(f"Failed to fetch PS1 cutout: {e}")
     return None
 
-def save_alert(candidate,discovery_datetime,filename):
+def save_alert(candidate,discovery_datetime,filename,last_report = None):
     """
     Save the candidate as an alert in the database.
     :param candidate: Candidate instance
+    :param discovery_datetime: Discovery datetime of the alert
+    :param filename: Name of the json file
+    :param last_report: last report section from the json file
     :return: The alert instance
     """
-    attributes = filename.split("_")
-    mount = attributes[0].split(".")[2]
-    camera = attributes[0].split(".")[3]
-    fieldid = attributes[3]
-    subimage = attributes[6]
-    alert = CandidateAlert.objects.create(
-        candidate = candidate,
-        filename = filename,
-        discovery_datetime = discovery_datetime,
-        mount = mount,
-        camera = camera,
-        fieldid = fieldid,
-        subimage = subimage,
-    )
+    #Extract the attributes from the last report
+    print(type(last_report))
+    if last_report != {}:
+        mount = last_report.get('mount', {})
+        camera = last_report.get('camera', {})
+        fieldid = last_report.get('field', {})
+        subimage = last_report.get('cropid', {})
+        score = last_report.get('score', {})
+        ref_cutout_filename = last_report.get('ref_cutout', {})
+        new_cutout_filename = last_report.get('new_cutout', {})
+        diff_cutout_filename = last_report.get('diff_cutout', {})
+    #create the alert
+        alert = CandidateAlert.objects.create(
+            candidate = candidate,
+            filename = filename,
+            discovery_datetime = discovery_datetime,
+            mount = mount,
+            camera = camera,
+            fieldid = fieldid,
+            subimage = subimage,
+            score = score,
+            ref_cutout_filename = ref_cutout_filename,
+            new_cutout_filename = new_cutout_filename,
+            diff_cutout_filename = diff_cutout_filename,
+        )
+    #If the last report is empty, ingest the attributes from the filename
+    else:
+        attributes = filename.split("_")
+        mount = attributes[0].split(".")[2]
+        camera = attributes[0].split(".")[3]
+        fieldid = attributes[3]
+        subimage = attributes[6]
+    
+        #create the alert
+        alert = CandidateAlert.objects.create(
+            candidate = candidate,
+            filename = filename,
+            discovery_datetime = discovery_datetime,
+            mount = mount,
+            camera = camera,
+            fieldid = fieldid,
+            subimage = subimage,
+        )
     return alert
+
+def add_photometry_from_last_report(candidate,last_report,start_jd = 0):
+    """
+    Add photometry data from the json last report.
+    :param candidate: Candidate instance
+    :param last_report: last report section from the json file
+    :param start_jd: julian day after which to add photometry to be used when the candidate existed prior to current alert.
+    """
+    detections_jd = np.array(last_report.get('detections_jd', {}))
+    detections = last_report.get('detections_mag', {})
+    detections_magerr = last_report.get('detections_magerr', {})
+    nondetections_jd = last_report.get('nondetections_jd', {})
+    nondetections_mag = last_report.get('nondetections_mag', {})
+
+    for i, jd in enumerate(detections_jd):
+        obs_date = Time(jd,format='jd')
+        if np.round(obs_date.jd,5) > np.round(start_jd,5):
+            print(obs_date.jd, start_jd)
+            magnitude = detections[i]
+            magnitude_error = detections_magerr[i]
+            CandidatePhotometry.objects.create(
+                candidate=candidate,
+                obs_date=obs_date.iso,
+                magnitude=magnitude,
+                magnitude_error=magnitude_error,
+                filter_band='clear',  # Use a mapping if needed to human-readable filter names
+                telescope="LAST",
+                instrument="LAST-CAM"
+        )
+    for i, jd in enumerate(nondetections_jd):
+        obs_date = Time(jd,format='jd')
+        if obs_date.jd > start_jd:
+            magnitude = nondetections_mag[i]
+            CandidatePhotometry.objects.create(
+                candidate=candidate,
+                obs_date=obs_date.iso,
+                limit = magnitude,
+                filter_band='clear',  # Use a mapping if needed to human-readable filter names
+                telescope="LAST",
+                instrument="LAST-CAM"
+            )
 
 def process_json_file(file):
     """
     Processes the uploaded JSON file and adds candidates to the database.
-    :param file: File object uploaded by the user
+    :param file: Ingested json file object 
     :return: The number of candidates successfully added
     """
     try:
@@ -182,123 +256,96 @@ def process_json_file(file):
     last_report = data.get('last_report', {})
     ra = at_report.get('RA', {}).get('value')
     dec = at_report.get('Dec', {}).get('value')
-    # name = f"LAST_{ra}_{dec}"  # Default name (or extract from JSON if available)
     discovery_datetime = at_report.get('discovery_datetime',{})[0]
     discovery_datetime = discovery_datetime[:discovery_datetime.find('UTC')-1]
     
     candidate_exists, existing_candidate = check_candidate_exists_by_cone(float(ra), float(dec), radius_arcsec=3)
     if candidate_exists:
-        save_alert(existing_candidate,discovery_datetime,file.name)
+        save_alert(existing_candidate,discovery_datetime,file.name,last_report)
+        if last_report != {}:
+            latest_photometry = CandidatePhotometry.objects.filter(candidate = existing_candidate).order_by('-obs_date').first()
+            start_jd = Time(latest_photometry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').jd
+            add_photometry_from_last_report(existing_candidate,last_report,start_jd)
         return None
 
-    if ra and dec:
-        # Save to the database
-        candidate = Candidate.objects.create(ra=ra, dec=dec,discovery_datetime=discovery_datetime)
-        save_alert(candidate,discovery_datetime,file.name)
-        #save the json file as a data product
+    # Save to the database
+    candidate = Candidate.objects.create(ra=ra, dec=dec,discovery_datetime=discovery_datetime)
+    save_alert(candidate,discovery_datetime,file.name,last_report)
+    #save the json file as a data product
+    CandidateDataProduct.objects.create(
+            candidate=candidate,
+            datafile=file,
+            data_product_type='json',
+            name=file.name
+        )
+    candidates_added += 1
+
+    # If there is no last report (old json format), add photometry from the AT tns report
+    if last_report == {}:
+        non_detection = at_report.get('non_detection', {})
+        if non_detection:
+            obs_date = parse_datetime(non_detection.get('obsdate', [None])[0].replace(" UTC", ""))
+            limit = non_detection.get('flux', None)
+            filter_value = non_detection.get('filter_value', None)
+            telescope = "LAST"  # You can map instrument_value to actual telescope name
+            instrument = "LAST-CAM"  # You can map instrument_value to actual instrument name
+
+            CandidatePhotometry.objects.create(
+                candidate=candidate,
+                obs_date=obs_date,
+                limit = limit,
+                filter_band=str(filter_value),  # Use a mapping if needed to human-readable filter names
+                telescope=telescope,
+                instrument=instrument
+            )
+
+        photometry_data = at_report.get('photometry', {}).get('photometry_group', {})
+        obs_date = photometry_data.get('obsdate', [None])[0]
+        if obs_date:
+            obs_date = parse_datetime(obs_date.replace(" UTC", ""))
+            magnitude = photometry_data.get('flux', None)
+            magnitude_error = 0  # Add logic to calculate or store flux error if available
+            filter_value = photometry_data.get('filter_value', None)
+            telescope = "LAST"  # You can map instrument_value to actual telescope name
+            instrument = "LAST-CAM"  # You can map instrument_value to actual instrument name
+
+            CandidatePhotometry.objects.create(
+                candidate=candidate,
+                obs_date=obs_date,
+                magnitude=magnitude,
+                magnitude_error=magnitude_error,
+                filter_band=str(filter_value),  # Use a mapping if needed to human-readable filter names
+                telescope=telescope,
+                instrument=instrument
+            )
+    # If there is a last report, add photometry and cutouts from the last report
+    if last_report != {}:
+        add_photometry_from_last_report(candidate,last_report)
+
+        #Reference images ingestion
+        ref_cutout = last_report.get('ref_cutout')
+        new_cutout = last_report.get('new_cutout')
+        diff_cutout = last_report.get('diff_cutout')
+
+        if ref_cutout:
+            create_candidate_cutouts(candidate, ref_cutout, 'ref')
+        if new_cutout:
+            create_candidate_cutouts(candidate, new_cutout, 'new')
+        if diff_cutout:
+            create_candidate_cutouts(candidate, diff_cutout, 'diff')
+    
+    #PS1 cutout
+    try:
+        ps1_cutout = fetch_ps1_cutout(ra, dec)
+    except Exception as e:
+        ps1_cutout = None
+    if ps1_cutout:
         CandidateDataProduct.objects.create(
-                candidate=candidate,
-                datafile=file,
-                data_product_type='json',
-                name=file.name
-            )
-        candidates_added += 1
-
-        # 1. Handle non-detection photometry
-        if last_report == {}:
-            non_detection = at_report.get('non_detection', {})
-            if non_detection:
-                obs_date = parse_datetime(non_detection.get('obsdate', [None])[0].replace(" UTC", ""))
-                limit = non_detection.get('flux', None)
-                filter_value = non_detection.get('filter_value', None)
-                telescope = "LAST"  # You can map instrument_value to actual telescope name
-                instrument = "LAST-CAM"  # You can map instrument_value to actual instrument name
-
-                CandidatePhotometry.objects.create(
-                    candidate=candidate,
-                    obs_date=obs_date,
-                    limit = limit,
-                    filter_band=str(filter_value),  # Use a mapping if needed to human-readable filter names
-                    telescope=telescope,
-                    instrument=instrument
-                )
-
-            photometry_data = at_report.get('photometry', {}).get('photometry_group', {})
-            obs_date = photometry_data.get('obsdate', [None])[0]
-            if obs_date:
-                obs_date = parse_datetime(obs_date.replace(" UTC", ""))
-                magnitude = photometry_data.get('flux', None)
-                magnitude_error = 0  # Add logic to calculate or store flux error if available
-                filter_value = photometry_data.get('filter_value', None)
-                telescope = "LAST"  # You can map instrument_value to actual telescope name
-                instrument = "LAST-CAM"  # You can map instrument_value to actual instrument name
-
-                CandidatePhotometry.objects.create(
-                    candidate=candidate,
-                    obs_date=obs_date,
-                    magnitude=magnitude,
-                    magnitude_error=magnitude_error,
-                    filter_band=str(filter_value),  # Use a mapping if needed to human-readable filter names
-                    telescope=telescope,
-                    instrument=instrument
-                )
-
-        if last_report != {}:
-            detections_jd = np.array(last_report.get('detections_jd', {}))
-            detections = last_report.get('detections_mag', {})
-            detections_magerr = last_report.get('detections_magerr', {})
-            nondetections_jd = last_report.get('nondetections_jd', {})
-            nondetections_mag = last_report.get('nondetections_mag', {})
-
-            for i, jd in enumerate(detections_jd):
-                obs_date = Time(jd,format='jd')
-                # print(obs_date.iso)
-                magnitude = detections[i]
-                magnitude_error = detections_magerr[i]
-                CandidatePhotometry.objects.create(
-                    candidate=candidate,
-                    obs_date=obs_date.iso,
-                    magnitude=magnitude,
-                    magnitude_error=magnitude_error,
-                    filter_band='clear',  # Use a mapping if needed to human-readable filter names
-                    telescope="LAST",
-                    instrument="LAST-CAM"
-                )
-            for i, jd in enumerate(nondetections_jd):
-                obs_date = Time(jd,format='jd')
-                magnitude = nondetections_mag[i]
-                CandidatePhotometry.objects.create(
-                    candidate=candidate,
-                    obs_date=obs_date.iso,
-                    limit = magnitude,
-                    filter_band='clear',  # Use a mapping if needed to human-readable filter names
-                    telescope="LAST",
-                    instrument="LAST-CAM"
-                )
-
-            #Reference images ingestion
-            ref_cutout = last_report.get('ref_cutout')
-            new_cutout = last_report.get('new_cutout')
-            diff_cutout = last_report.get('diff_cutout')
-
-            if ref_cutout:
-                create_candidate_cutouts(candidate, ref_cutout, 'ref')
-            if new_cutout:
-                create_candidate_cutouts(candidate, new_cutout, 'new')
-            if diff_cutout:
-                create_candidate_cutouts(candidate, diff_cutout, 'diff')
-        #PS1 cutout
-        try:
-            ps1_cutout = fetch_ps1_cutout(ra, dec)
-        except Exception as e:
-            ps1_cutout = None
-        if ps1_cutout:
-            CandidateDataProduct.objects.create(
-                candidate=candidate,
-                datafile=ps1_cutout,
-                data_product_type='ps1',
-                name=f"{candidate.name} PS1 cutout",
-            )
+            candidate=candidate,
+            datafile=ps1_cutout,
+            data_product_type='ps1',
+            name=f"{candidate.name} PS1 cutout",
+        )
 
     return candidates_added
 
@@ -309,7 +356,7 @@ def process_multiple_json_files(directory_path):
     :return: The total number of candidates successfully added
     """
     # json_files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
-    last_candidate_alert = CandidateAlert.objects.order_by('-discovery_datetime').first()
+    last_candidate_alert = CandidateAlert.objects.order_by('-created_at').first()
     process_after_date = last_candidate_alert.created_at if last_candidate_alert else datetime.min
 
     # computer_time_zone = zoneinfo.ZoneInfo("UTC")
@@ -359,14 +406,45 @@ def check_target_exists_for_candidate(candidate_id, radius_arcsec=3):
     # Return the first matching target if any, or None
     return matching_targets.first()
 
-def construct_photometry_file(candidate):
-    return None
+
+def transfer_candidate_photometry_to_target(candidate, target):
+    """
+    Transfers all photometry data from a candidate to a target as ReducedDatum entries.
+    :param candidate: Candidate instance
+    :param target: Target instance
+    """
+    # Query all photometry for the candidate
+    photometry_entries = candidate.photometry.all()
+
+    for entry in photometry_entries:
+        # Prepare the JSON value for ReducedDatum
+        print(Time(entry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').mjd)
+        value = {
+            "time": Time(entry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').mjd,  # Store as mjd
+            "filter": entry.filter_band,
+            "magnitude": entry.magnitude,
+            "error": entry.magnitude_error,
+            "limit": entry.limit,
+        }
+
+        # Create the ReducedDatum entry
+        try:
+            ReducedDatum.objects.create(
+                target=target,
+                data_type="photometry",
+                source_name=f"{entry    .telescope}" if entry.telescope and entry.instrument else "Unknown Source",
+                timestamp=entry.obs_date,
+                value=value,
+            )
+        except Exception as e:
+            # Handle validation errors or duplicates
+            print(f"Error saving photometry point: {e}")
 
 def add_candidate_as_target(candidate_id, group_name='LAST general'):
     """
     Adds a candidate as a TOM target if it doesn't already exist and assigns it to a specific group.
     :param candidate_id: The ID of the candidate to add as a target.
-    :param group_name: The name of the group to assign the target to.
+    :param group_name: The name of the authentication group to assign the target, default is 'LAST general'.
     :return: The newly created or existing Target object.
     """
     # Check if the target already exists
@@ -389,6 +467,9 @@ def add_candidate_as_target(candidate_id, group_name='LAST general'):
         dec=candidate.dec,
     )
 
+    #Add the candidate photometry to the target
+    transfer_candidate_photometry_to_target(candidate, target)
+
     # Assign object-level permissions to the group
     assign_perm('tom_targets.view_target', group, target)
     assign_perm('tom_targets.change_target', group, target)
@@ -396,6 +477,23 @@ def add_candidate_as_target(candidate_id, group_name='LAST general'):
 
     return target
 
+def update_candidate_cutouts(candidate):
+    last_alert = CandidateAlert.objects.filter(candidate=candidate).order_by('-created_at').first()
+    if last_alert:
+        ref_cutout = last_alert.ref_cutout_filename
+        new_cutout = last_alert.new_cutout_filename
+        diff_cutout = last_alert.diff_cutout_filename
+        print(ref_cutout,new_cutout,diff_cutout)
+        try:
+            if ref_cutout:
+                create_candidate_cutouts(candidate, ref_cutout, 'ref')
+            if new_cutout:
+                create_candidate_cutouts(candidate, new_cutout, 'new')
+            if diff_cutout:
+                create_candidate_cutouts(candidate, diff_cutout, 'diff')
+        except:
+            print("Error updating cutouts")
+            return None
 
 def generate_photometry_graph(candidate):
     """
