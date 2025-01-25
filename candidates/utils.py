@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict
 import time
+import traceback
 
 def cone_search_filter_candidates(queryset, ra, dec, radius):
     """
@@ -139,6 +140,17 @@ def fetch_ps1_cutout(ra, dec):
         print(f"Failed to fetch PS1 cutout: {e}")
     return None
 
+def fetch_sdss_cutout(ra, dec):
+    url = f'https://skyserver.sdss.org/dr16/SkyServerWS/ImgCutout/getjpeg?ra={ra}&dec={dec}&scale=0.2&width=240&height=240&opt=G'
+    print(url)
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        if response.status_code == 200:
+            return ContentFile(BytesIO(response.content).read(), name=f"sdss_cutout.jpg")
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to fetch SDSS cutout: {e}")
+
 def save_alert(candidate,discovery_datetime,filename,last_report = None):
     """
     Save the candidate as an alert in the database.
@@ -149,7 +161,6 @@ def save_alert(candidate,discovery_datetime,filename,last_report = None):
     :return: The alert instance
     """
     #Extract the attributes from the last report
-    print(type(last_report))
     if last_report != {}:
         mount = last_report.get('mount', {})
         camera = last_report.get('camera', {})
@@ -205,7 +216,6 @@ def add_photometry_from_last_report(candidate,last_report,start_jd = 0):
     detections_magerr = last_report.get('detections_magerr', {})
     nondetections_jd = last_report.get('nondetections_jd', {})
     nondetections_mag = last_report.get('nondetections_mag', {})
-
     for i, jd in enumerate(detections_jd):
         obs_date = Time(jd,format='jd')
         if np.round(obs_date.jd,5) > np.round(start_jd,5):
@@ -274,9 +284,9 @@ def process_json_file(file):
     #save the json file as a data product
     CandidateDataProduct.objects.create(
             candidate=candidate,
-            datafile=file,
+            datafile=File(file),
             data_product_type='json',
-            name=file.name
+            name=os.path.basename(file.name)
         )
     candidates_added += 1
 
@@ -320,7 +330,10 @@ def process_json_file(file):
             )
     # If there is a last report, add photometry and cutouts from the last report
     if last_report != {}:
-        add_photometry_from_last_report(candidate,last_report)
+        try:
+            add_photometry_from_last_report(candidate,last_report)
+        except Exception as e:
+            print(f"Error adding photometry: {e}")
 
         #Reference images ingestion
         ref_cutout = last_report.get('ref_cutout')
@@ -345,6 +358,18 @@ def process_json_file(file):
             datafile=ps1_cutout,
             data_product_type='ps1',
             name=f"{candidate.name} PS1 cutout",
+        )
+    #SDSS cutout
+    try:
+        sdss_cutout = fetch_sdss_cutout(ra, dec)
+    except Exception as e:
+        sdss_cutout = None
+    if sdss_cutout:
+        CandidateDataProduct.objects.create(
+            candidate=candidate,
+            datafile=sdss_cutout,
+            data_product_type='sdss',
+            name=f"{candidate.name} SDSS cutout",
         )
 
     return candidates_added
@@ -382,6 +407,7 @@ def process_multiple_json_files(directory_path):
                     print(f"Skipping {json_file}: Candidate already exists or no RA/Dec found.")
         except Exception as e:
             print(f"Error processing {json_file}: {e}")
+            traceback.print_exc()
 
     print(f"Total candidates added: {total_candidates_added}")
     return total_candidates_added
@@ -459,9 +485,12 @@ def add_candidate_as_target(candidate_id, group_name='LAST general'):
     
     group, _ = Group.objects.get_or_create(name=group_name)
 
+    # Set the name as the IAU name or the LAST target name if no IAU name
+    name = candidate.tns_name if candidate.tns_name else candidate.name
+    
     # Create the new target
     target = Target.objects.create(
-        name=candidate.name,
+        name=name,
         type=Target.SIDEREAL,  # Assuming sidereal targets
         ra=candidate.ra,
         dec=candidate.dec,
@@ -583,7 +612,7 @@ def tns_cone_search(ra, dec, radius=3.0):
         dict: The response data from the TNS.
     """
     # API endpoint for the cone searchtns_settings = settings.BROKERS.get('TNS', {})
-    TNS                 = "sandbox.wis-tns.org"
+    TNS                 = "www.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')
@@ -681,7 +710,7 @@ def transform_json_tns(input_data):
     }
 
 def send_json_tns_report(report):
-    TNS                 = "sandbox.wis-tns.org"
+    TNS                 = "www.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')
@@ -698,7 +727,7 @@ def send_json_tns_report(report):
 
 
 def send_tns_reply(id_report):
-    TNS                 = "sandbox.wis-tns.org"
+    TNS                 = "www.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')

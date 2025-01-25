@@ -11,7 +11,9 @@ For customization instructions, see tom_common/base.html
     <a class="nav-link dropdown-toggle {% if request.resolver_match.namespace == 'candidates' %}active{% endif %}" data-toggle="dropdown">Candidates</a>
     <div class="dropdown-menu">
         <a class="dropdown-item" href="{% url 'candidates:list' %}">Candidates</a>
-        <a class="dropdown-item" href="{% url 'candidates:upload' %}">Upload candidates</a>
+        {% if request.user.is_superuser %}
+            <a class="dropdown-item" href="{% url 'candidates:upload' %}">Upload candidates</a>
+        {% endif %}
         <!-- <a class="dropdown-item" href="{% url 'targets:targetgrouping' %}">Target Grouping</a> -->
     </div>
 </li>

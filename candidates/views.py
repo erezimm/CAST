@@ -99,7 +99,7 @@ def candidate_list_view(request):
     if end_datetime:
         candidates = candidates.filter(created_at__lte=end_datetime)
     
-    cutout_types = ['ps1', 'ref', 'new', 'diff']
+    cutout_types = ['ps1', 'ref', 'new', 'diff','sdss']
 
     candidate_status = [
         {
@@ -187,10 +187,21 @@ def update_real_bogus_view(request, candidate_id):
         messages.success(request, f"Updated {candidate.name} to {candidate.get_real_bogus_display()}.")
 
     # Get the filter parameter from the request
-    filter_value = request.GET.get('filter', 'all')  # Default to 'neither' if no filter is provided
+    filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided
+    # Redirect to the candidate list with the current filter, start date, end date, and anchor
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+    
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
 
-    # Redirect to the candidate list with the current filter applied
-    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")
+    # Add anchor for the specific candidate
+    redirect_url += f"#candidate-{candidate.id}"
+
+    return redirect(redirect_url)
 
 def candidate_detail_view(request, candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)

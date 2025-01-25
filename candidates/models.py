@@ -21,7 +21,7 @@ def tns_cone_search(ra, dec, radius=2.0):
         dict: The response data from the TNS.
     """
     # API endpoint for the cone searchtns_settings = settings.BROKERS.get('TNS', {})
-    TNS                 = "sandbox.wis-tns.org"
+    TNS                 = "www.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')
@@ -96,7 +96,7 @@ class Candidate(models.Model):
         :return: TNS response (JSON) or None if not found
         """
         tns_settings = settings.BROKERS.get('TNS', {})
-        TNS                 = "sandbox.wis-tns.org"
+        TNS                 = "www.wis-tns.org"
         url_tns_api         = "https://" + TNS + "/api"
         TNS_BOT_ID          = tns_settings.get('bot_id')
         TNS_BOT_NAME        = tns_settings.get('bot_name')
@@ -195,7 +195,7 @@ class CandidateDataProduct(models.Model):
         null=False
     )
     datafile = models.FileField(upload_to=candidate_data_product_path, blank=True, null=True)
-    data_product_type = models.CharField(max_length=50, choices=[('ref', 'ref'), ('new', 'new'), ('diff','diff'), ('ps1','ps1'),('json','json'),('tns_report','tns_report')])
+    data_product_type = models.CharField(max_length=50, choices=[('ref', 'ref'), ('new', 'new'), ('diff','diff'), ('ps1','ps1'),('sdss','sdss'),('json','json'),('tns_report','tns_report')])
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

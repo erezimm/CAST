@@ -23,9 +23,7 @@
                 <button type="submit" class="btn btn-primary">Filter</button>
             </div>
         </div>
-    </form>
     <!-- Filter Dropdown -->
-    <form method="GET" action="{% url 'candidates:list' %}" class="mb-4">
         <div class="form-group">
             <label for="filter">Filters:</label>
             <select id="filter" name="filter" class="form-control form-control-sm" onchange="this.form.submit();">
@@ -60,6 +58,7 @@
                     {% elif item.candidate.real_bogus is False %}
                     class="table-danger" 
                     {% endif %}
+                    id="candidate-{{ item.candidate.id }}"
                 >
                     <td>
                         <p><b>Discovery date (UTC):</b> {{ item.candidate.discovery_datetime|date:"Y-m-d H:i" }}</p>
@@ -85,7 +84,7 @@
                             <!-- First row for general cutouts excluding Pan-STARRS -->
                             <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 10px;">
                                 {% for cutout in item.cutouts %}
-                                    {% if cutout.data_product_type|lower != 'ps1' %}
+                                {% if cutout.data_product_type|lower not in 'ps1,sdss' %}
                                         <div style="text-align: center;">
                                             <img src="{{ cutout.datafile.url }}" alt="{{ cutout.name }}" style="max-width: 240px; height: auto;">
                                             <div>
@@ -109,7 +108,17 @@
                                     {% endif %}
                                 {% endfor %}
                                 <!-- SDSS -->
-                                <div style="text-align: center;">
+                                {% for cutout in item.cutouts %}
+                                {% if cutout.data_product_type|lower == 'sdss' %}
+                                    <div style="text-align: center;">
+                                        <img src="{{ cutout.datafile.url }}" alt="SDSS Cutout" style="max-width: 240px; height: auto;">
+                                        <div>
+                                            <small>SDSS</small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                                <!-- <div style="text-align: center;">
                                     <img
                                     src="https://skyserver.sdss.org/dr16/SkyServerWS/ImgCutout/getjpeg?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}&scale=0.2&width=240&height=240&opt=G"
                                     alt="SDSS Cutout" style="max-width: 240px; height: auto;">
@@ -117,7 +126,7 @@
                                         <small>SDSS</small>
                                     </div>
                                 </div>
-                            </div>
+                            </div> -->
                         {% else %}
                             No cutouts available.
                         {% endif %}
@@ -133,7 +142,7 @@
                     </td>
                     <td>
                         <!-- Real/Bogus Buttons -->
-                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="real_bogus" value="real">
                             <button type="submit" class="btn btn-sm btn-success" {% if item.candidate.real_bogus is True %}disabled{% endif %}>
@@ -141,7 +150,7 @@
                             </button>
                         </form>
 
-                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}??filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="real_bogus" value="bogus">
                             <button type="submit" class="btn btn-sm btn-danger" {% if item.candidate.real_bogus is False %}disabled{% endif %}>
@@ -190,11 +199,13 @@
                         </form>
                         {% endif %}
                         <!-- Delete Button -->
+                        {% if request.user.is_superuser %}
                         <form method="POST" action="{% url 'candidates:delete_candidate' %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
                             <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                         </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
