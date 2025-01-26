@@ -1,5 +1,5 @@
 from .forms import FileUploadForm
-from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report,update_candidate_cutouts
+from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report,update_candidate_cutouts,tns_report_details
 from .models import Candidate,CandidateDataProduct,CandidateAlert
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -7,7 +7,7 @@ from django.urls import reverse
 from datetime import timedelta
 from django.utils.timezone import now
 from django.utils.dateparse import parse_datetime
-
+from django.db.models import Subquery, OuterRef
 from django.contrib.auth.decorators import login_required, user_passes_test
 
 def upload_file_view(request):
@@ -79,6 +79,15 @@ def candidate_list_view(request):
     else:  # 'all'
         candidates = Candidate.objects.all().order_by('-created_at')
 
+    # Annotate candidates with the latest alert timestamp
+    candidates = candidates.annotate(
+        latest_alert_time=Subquery(
+            CandidateAlert.objects.filter(candidate=OuterRef('pk'))
+            .order_by('-created_at')
+            .values('created_at')[:1]
+        )
+    ).order_by('-latest_alert_time')
+
     # Get filter values from the request
     start_datetime = request.GET.get('start_datetime')
     end_datetime = request.GET.get('end_datetime')
@@ -95,18 +104,23 @@ def candidate_list_view(request):
 
     # Apply datetime filtering
     if start_datetime:
-        candidates = candidates.filter(created_at__gte=start_datetime)
+        candidates = candidates.filter(latest_alert_time__gte=start_datetime)
     if end_datetime:
-        candidates = candidates.filter(created_at__lte=end_datetime)
+        candidates = candidates.filter(latest_alert_time__lte=end_datetime)
     
     cutout_types = ['ps1', 'ref', 'new', 'diff','sdss']
-
+    
     candidate_status = [
         {
             'candidate': candidate,
             'target': check_target_exists_for_candidate(candidate.id),  # Include Target if it exists
             'graph': generate_photometry_graph(candidate),  # Generate photometry graph
-            'cutouts': CandidateDataProduct.objects.filter(candidate=candidate, data_product_type__in=cutout_types),
+            'cutouts': [
+                CandidateDataProduct.objects.filter(candidate=candidate, data_product_type=cutout_type)
+                    .order_by('-created_at')
+                    .first()
+                for cutout_type in cutout_types
+            ],
             'last_alert': CandidateAlert.objects.filter(candidate=candidate).order_by('-created_at').first()
         }
         for candidate in candidates
@@ -117,7 +131,8 @@ def candidate_list_view(request):
         'filter_value': filter_value, # Pass the current filter to the template
         'start_datetime': start_datetime,
         'end_datetime' : end_datetime,
-        'candidate_status': candidate_status 
+        'candidate_status': candidate_status,
+        'candidate_count': candidates.count(),
     })
 
 def add_target_view(request):
@@ -133,39 +148,6 @@ def add_target_view(request):
             messages.error(request, f"Failed to add target: {str(e)}")
     return redirect('candidates:list')
 
-def cone_search_view(request):
-    """
-    View to perform a cone search for targets by RA/Dec using `cone_search_filter`.
-    """
-    try:
-        # Parse query parameters
-        ra = float(request.GET.get('ra'))
-        dec = float(request.GET.get('dec'))
-        radius_arcsec = float(request.GET.get('radius', 3))  # Default radius is 3 arcseconds
-
-        # Convert radius to degrees
-        radius_deg = radius_arcsec / 3600.0
-
-        # Perform the cone search
-        queryset = Target.objects.all()
-        matching_targets = cone_search_filter(queryset, ra, dec, radius_deg)
-
-        # Prepare the results
-        results = [
-            {
-                'id': target.id,
-                'name': target.name,
-                'ra': target.ra,
-                'dec': target.dec,
-                'extra_fields': target.extra_fields,
-            }
-            for target in matching_targets
-        ]
-
-        return JsonResponse({'success': True, 'results': results})
-    except Exception as e:
-        return JsonResponse({'success': False, 'message': str(e)}, status=400)
-    
 def update_real_bogus_view(request, candidate_id):
     """
     Updates the real/bogus status of a candidate based on the button clicked.
@@ -203,14 +185,8 @@ def update_real_bogus_view(request, candidate_id):
 
     return redirect(redirect_url)
 
-def candidate_detail_view(request, candidate_id):
-    candidate = get_object_or_404(Candidate, id=candidate_id)
-    photometry = candidate.photometry.all()
-    return render(request, 'candidates/detail.html', {
-        'candidate': candidate,
-        'photometry': photometry
-    })
-
+@login_required
+@user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())
 def send_tns_report_view(request, candidate_id):
     """
     Generates and sends a TNS report for a candidate.
@@ -218,16 +194,59 @@ def send_tns_report_view(request, candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)
     filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
 
-    # Logic for generating and sending the TNS report
     try:
-        # Example: Assume a function `send_tns_report(candidate)` sends the report
         send_tns_report(candidate)
         messages.success(request, f"TNS report successfully sent for {candidate.name}.")
     except Exception as e:
         messages.error(request, f"Failed to send TNS report for {candidate.name}: {e}")
 
+    # Get the filter parameter from the request
+    filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided
+    # Redirect to the candidate list with the current filter, start date, end date, and anchor
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+        
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
+    # Add anchor for the specific candidate
+    redirect_url += f"#candidate-{candidate.id}"
     # Redirect back to the filtered candidate list
-    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")
+    return redirect(redirect_url)
+
+@login_required
+@user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())
+def tns_report_view(request, candidate_id):
+    """
+    View for displaying TNS report details and manually sending the report.
+    """
+    filter_value = request.GET.get('filter_value')
+    start_datetime = request.GET.get('start_datetime')
+    end_datetime = request.GET.get('end_datetime')
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+
+    report = tns_report_details(candidate)
+    at_report = report.get('at_report', {})
+    # print(at_report)
+    report_details = {
+        "RA": at_report['RA']['value'],
+        "DEC": at_report['Dec']['value'],
+        "discovery_datetime": at_report['discovery_datetime'][0],
+        "last_non_detection" : at_report['non_detection']['obsdate'][0],
+        "non_detection_limit": at_report['non_detection']['flux'],
+        "detection_mag" : at_report['photometry']['photometry_group']['flux'],
+        "reporters" : at_report['reporter'],
+    }
+
+    return render(request, 'candidates/tns_report_details.html', {
+        'candidate': candidate,
+        'report_details': report_details,
+        'filter_value': filter_value,
+        'start_datetime': start_datetime,
+        'end_datetime': end_datetime,
+    })
 
 def update_cutouts_view(request, candidate_id):
     """
@@ -245,3 +264,17 @@ def update_cutouts_view(request, candidate_id):
 
     # Redirect back to the filtered candidate list
     return redirect(f"{reverse('candidates:list')}?filter={filter_value}")
+
+def candidate_detail(request, candidate_id):
+    filter_value = request.GET.get('filter_value')
+    start_datetime = request.GET.get('start_datetime')
+    end_datetime = request.GET.get('end_datetime')
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    context = {
+        'candidate': candidate,
+        'photometry_graph': generate_photometry_graph(candidate),
+        'filter_value': filter_value,
+        'start_datetime': start_datetime,
+        'end_datetime': end_datetime,
+    }
+    return render(request, 'candidates/candidate_detail.html', context)

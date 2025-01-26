@@ -1,0 +1,50 @@
+{% extends 'candidates/base_candidates.html' %}
+{% block title %}TNS Report for {{ candidate.name }}{% endblock %}
+{% block content %}
+
+<div class="container mt-4">
+    <h1>TNS Report for {{ candidate.name }}</h1>
+    <hr>
+    <!-- Back and Send Report Buttons -->
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}"
+        class="btn btn-danger"> Back to Candidate List</a>
+        <form method="POST" action="{% url 'candidates:send_tns_report' candidate.id %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Send Report</button>
+        </form>
+    </div>
+
+    <!-- Report Details -->
+    <h4>Report Details</h4>
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <th>Coordinates (RA, Dec) </th>
+                <td>{{ report_details.RA }}, {{ report_details.DEC }}</td>
+            </tr>
+            <tr>
+                <th>Discovery Date</th>
+                <td>{{ report_details.discovery_datetime }}</td>
+            </tr>
+            <tr>
+                <th>Discovery magnitude</th>
+                <td>{{ report_details.detection_mag }} mag</td>
+            </tr>
+            <tr>
+                <th>Last non-detection (Date, limit)</th>
+                <td>{{ report_details.last_non_detection }}</td>
+            </tr>
+            <tr>
+                <th>Non-detection limit</th>
+                <td>{{ report_details.non_detection_limit }} mag</td>
+            </tr>
+            <tr>
+                <th>Reporters</th>
+                <td>{{ report_details.reporters }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

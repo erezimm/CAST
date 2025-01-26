@@ -36,7 +36,7 @@
             </select>
         </div>
     </form>
-
+    <p><b>Number of Candidates Found:</b> {{ candidate_count }}</p>
     <div class="table-responsive">
         <table class="table table-hover table-bordered table-striped w-100">
             <thead class="thead-light">
@@ -62,7 +62,12 @@
                 >
                     <td>
                         <p><b>Discovery date (UTC):</b> {{ item.candidate.discovery_datetime|date:"Y-m-d H:i" }}</p>
-                        <p><b>Name:</b> {{ item.candidate.name }}</p>
+                        <p>
+                            <b>Name:</b> 
+                            <a href="{% url 'candidates:candidate_detail' item.candidate.id %}?filter_value={{ filter_value|urlencode }}&start_datetime={{ start_datetime|urlencode }}&end_datetime={{ end_datetime|urlencode }}">
+                                {{ item.candidate.name }}
+                            </a>
+                        </p>
                         <p>{% if item.candidate.tns_name %}
                             <b>IAU name:</b>
                         <a href="https://www.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
@@ -84,7 +89,7 @@
                             <!-- First row for general cutouts excluding Pan-STARRS -->
                             <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 10px;">
                                 {% for cutout in item.cutouts %}
-                                {% if cutout.data_product_type|lower not in 'ps1,sdss' %}
+                                    {% if cutout.data_product_type|lower not in 'ps1,sdss' %}
                                         <div style="text-align: center;">
                                             <img src="{{ cutout.datafile.url }}" alt="{{ cutout.name }}" style="max-width: 240px; height: auto;">
                                             <div>
@@ -192,7 +197,7 @@
                         {% elif item.candidate.real_bogus is False %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Target is Bogus</button>
                         {% else %}
-                        <form method="POST" action="{% url 'candidates:send_tns_report' item.candidate.id %}?filter={{ filter_value }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:tns_report_details' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
                             <button type="submit" class="btn btn-sm btn-warning">Send TNS Report</button>

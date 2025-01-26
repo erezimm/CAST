@@ -276,15 +276,25 @@ def process_json_file(file):
             latest_photometry = CandidatePhotometry.objects.filter(candidate = existing_candidate).order_by('-obs_date').first()
             start_jd = Time(latest_photometry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').jd
             add_photometry_from_last_report(existing_candidate,last_report,start_jd)
+            wrapped_file = File(file)
+            wrapped_file.name = os.path.basename(file.name)
+            CandidateDataProduct.objects.create(
+            candidate=existing_candidate,
+            datafile=wrapped_file,
+            data_product_type='json',
+            name=os.path.basename(file.name)
+            )
         return None
 
     # Save to the database
     candidate = Candidate.objects.create(ra=ra, dec=dec,discovery_datetime=discovery_datetime)
     save_alert(candidate,discovery_datetime,file.name,last_report)
     #save the json file as a data product
+    wrapped_file = File(file)
+    wrapped_file.name = os.path.basename(file.name)
     CandidateDataProduct.objects.create(
             candidate=candidate,
-            datafile=File(file),
+            datafile=wrapped_file,
             data_product_type='json',
             name=os.path.basename(file.name)
         )
@@ -681,7 +691,7 @@ def transform_json_tns(input_data):
                 },
                 "reporting_group_id": input_data["at_report"]["reporting_group_id"],
                 "discovery_data_source_id": input_data["at_report"]["discovery_data_source_id"],
-                "reporter": input_data["at_report"]["reporter"],
+                "reporter": "R. Konno (WIS), E. Zimmerman (WIS), A. Horowicz (WIS), S. Garrappa (WIS), E. O. Ofek (WIS), S. Ben-Ami (WIS), D. Polishook (WIS), O. Yaron (WIS), P. Chen (WIS), A. Krassilchtchikov (WIS), Y. M. Shani (WIS), E. Segre (WIS), A. Gal-Yam (WIS), S. Spitzer (WIS), and K. Rybicki (WIS) on behalf of the LAST Collaboration" #input_data["at_report"]["reporter"],
                 "discovery_datetime": convert_datetime_tns(input_data["at_report"]["discovery_datetime"][0]),
                 "at_type": input_data["at_report"]["at_type"],
                 "non_detection": {
@@ -741,6 +751,18 @@ def send_tns_reply(id_report):
     response = requests.post(reply_url, headers = headers, data = reply_data,timeout=30)
     return response
 
+def tns_report_details(candidate):
+    """
+    Get the TNS report details for a candidate before sending the details
+    :param candidate: Candidate instance
+    :return: The TNS report details or None if not found
+    """
+    # Perform a cone search on the TNS
+    dataproduct = CandidateDataProduct.objects.filter(candidate=candidate,data_product_type='json').first()
+    file = dataproduct.datafile
+    file_content = file.read().decode('utf-8')  # Decode to string
+    return json.loads(file_content)
+
 def send_tns_report(candidate):
     """
     Generate a TNS report based on the original json file
@@ -750,10 +772,11 @@ def send_tns_report(candidate):
     if candidate.reported_by_LAST:
         return None
     else:
-        dataproduct = CandidateDataProduct.objects.filter(candidate=candidate,data_product_type='json').first()
-        file = dataproduct.datafile
-        file_content = file.read().decode('utf-8')  # Decode to string
-        data = json.loads(file_content)  # Parse the JSON content
+        # dataproduct = CandidateDataProduct.objects.filter(candidate=candidate,data_product_type='json').first()
+        # file = dataproduct.datafile
+        # file_content = file.read().decode('utf-8')  # Decode to string
+        # data = json.loads(file_content)  # Parse the JSON content
+        data = tns_report_details(candidate)
         transformed_json = json.dumps(transform_json_tns(data))
         report = json.loads(StringIO(transformed_json).read(), object_pairs_hook = OrderedDict)
         response = send_json_tns_report(report)
@@ -788,4 +811,8 @@ def send_tns_report(candidate):
                 )
                 candidate.tns_name = objname
                 candidate.reported_by_LAST = True
-                candidate.save()
+                try:
+                    candidate.save()
+                except Exception as e:
+                    print(f"Error saving candidate: {e}")
+                print(candidate.tns_name)

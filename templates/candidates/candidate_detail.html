@@ -1,0 +1,87 @@
+{% extends 'tom_common/base.html' %}
+{% block title %}Candidate {{ candidate.name }}{% endblock %}
+{% block content %}
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<div class="container mt-4">
+    <h1>Candidate: {{ candidate.name }}</h1>
+    <hr>
+    <div class="row">
+        <!-- Candidate Info -->
+        <div class="col-md-6">
+            <h4>General Information</h4>
+            <ul class="list-group">
+                <li class="list-group-item"><strong>RA:</strong> {{ candidate.ra |floatformat:-6}}</li>
+                <li class="list-group-item"><strong>DEC:</strong> {{ candidate.dec |floatformat:-6}}</li>
+                <li class="list-group-item"><strong>Discovery Date:</strong> {{ candidate.discovery_datetime|date:"Y-m-d H:i" }}</li>
+            </ul>
+            <h4>Alerts</h4>
+            <p>Number of alerts: {{ candidate.alert.count }}</p>
+            <div class="row">
+                {% for alert in candidate.alert.all %}
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <p class="card-text">
+                                    <b>Date:</b> {{ alert.created_at|date:"Y-m-d H:i" }}<br>
+                                    <b>Score:</b> {{ alert.score|floatformat:-2 }}<br>
+                                    <b>Mount:</b> {{ alert.mount }}<br>
+                                    <b>Camera:</b> {{ alert.camera }}<br>
+                                    <b>Field:</b> {{ alert.fieldid }}<br>
+                                    <b>Sub image:</b> {{ alert.subimage }}<br>
+                                    <!-- <b>File name:</b> {{ alert.filename }}<br> -->
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Photometry -->
+        <div class="col-md-6">
+            <h4>Photometry</h4>
+            {% if photometry_graph %}
+                {{ photometry_graph|safe }}
+            {% else %}
+                <p>No photometry data available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <hr>
+    <!-- Data Products -->
+    <h4>Cutouts</h4>
+    {% if candidate.data_products.all %}
+        <div class="row">
+            {% for data_product in candidate.data_products.all %}
+                {% if data_product.data_product_type|lower not in 'json' %}
+                    {% if data_product.datafile %}
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ data_product.data_product_type }}</h5>
+                                <p class="card-text">
+                                    <!-- <strong>Type:</strong> {{ data_product.data_product_type }}<br> -->
+                                    <div style="text-align: center;">
+                                        <img src="{{ data_product.datafile.url }}" alt="{{ data_product.name }}" style="max-width: 240px; height: auto;">
+                                        <div>
+                                            <small>{{ cutout.data_product_type|title }}</small>
+                                        </div>
+                                    </div>
+                                <!-- </p>
+                                    <a href="{{ data_product.datafile.url }}" class="btn btn-sm btn-primary" target="_blank">Download</a> -->
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No data products available.</p>
+    {% endif %}
+
+    <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}" class="btn btn-secondary mt-4">Back to Candidate List</a>
+</div>
+{% endblock %}
