@@ -4,6 +4,7 @@ from .models import Candidate,CandidateDataProduct,CandidateAlert
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.urls import reverse
+from django.core.paginator import Paginator
 from datetime import timedelta
 from django.utils.timezone import now
 from django.utils.dateparse import parse_datetime
@@ -127,6 +128,16 @@ def candidate_list_view(request):
         for candidate in candidates
     ]
 
+    # Apply pagination
+    items_per_page = request.GET.get('items_per_page', 25)
+    try:
+        items_per_page = int(items_per_page)
+    except ValueError:
+        items_per_page = 25
+    paginator = Paginator(candidate_status, items_per_page) 
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'candidates/list.html', {
         # 'candidates': candidates,
         'filter_value': filter_value, # Pass the current filter to the template
@@ -134,6 +145,8 @@ def candidate_list_view(request):
         'end_datetime' : end_datetime,
         'candidate_status': candidate_status,
         'candidate_count': candidates.count(),
+        'page_obj': page_obj,
+        'items_per_page': items_per_page, 
     })
 
 def add_target_view(request):
@@ -147,7 +160,29 @@ def add_target_view(request):
             messages.success(request, f"Candidate added as target: {target.name}")
         except Exception as e:
             messages.error(request, f"Failed to add target: {str(e)}")
-    return redirect('candidates:list')
+
+    # Get the filter parameter from the request
+    filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided
+    # Redirect to the candidate list with the current filter, start date, end date, and anchor
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
+    
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
+
+    # Add anchor for the specific candidate
+    redirect_url += f"#candidate-{candidate_id}"
+
+    return redirect(redirect_url)
 
 def update_real_bogus_view(request, candidate_id):
     """
@@ -175,11 +210,17 @@ def update_real_bogus_view(request, candidate_id):
     redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
     start_datetime = request.GET.get('start_datetime', '')
     end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
     
     if start_datetime:
         redirect_url += f"&start_datetime={start_datetime}"
     if end_datetime:
         redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
 
     # Add anchor for the specific candidate
     redirect_url += f"#candidate-{candidate.id}"
@@ -207,11 +248,17 @@ def send_tns_report_view(request, candidate_id):
     redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
     start_datetime = request.GET.get('start_datetime', '')
     end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
         
     if start_datetime:
         redirect_url += f"&start_datetime={start_datetime}"
     if end_datetime:
         redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
     # Add anchor for the specific candidate
     redirect_url += f"#candidate-{candidate.id}"
     # Redirect back to the filtered candidate list

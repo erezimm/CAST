@@ -12,6 +12,7 @@ from django.utils.safestring import mark_safe
 from django.contrib.auth.models import Group
 from guardian.shortcuts import assign_perm
 from django.core.files.base import ContentFile
+# from django.http import HttpResponse
 from tom_dataproducts.models import ReducedDatum
 from math import radians
 import os
