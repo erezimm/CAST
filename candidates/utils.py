@@ -691,7 +691,7 @@ def transform_json_tns(input_data):
                 },
                 "reporting_group_id": input_data["at_report"]["reporting_group_id"],
                 "discovery_data_source_id": input_data["at_report"]["discovery_data_source_id"],
-                "reporter": "R. Konno (WIS), E. Zimmerman (WIS), A. Horowicz (WIS), S. Garrappa (WIS), E. O. Ofek (WIS), S. Ben-Ami (WIS), D. Polishook (WIS), O. Yaron (WIS), P. Chen (WIS), A. Krassilchtchikov (WIS), Y. M. Shani (WIS), E. Segre (WIS), A. Gal-Yam (WIS), S. Spitzer (WIS), and K. Rybicki (WIS) on behalf of the LAST Collaboration", #input_data["at_report"]["reporter"],
+                "reporter": input_data["at_report"]["reporter"],
                 "discovery_datetime": convert_datetime_tns(input_data["at_report"]["discovery_datetime"][0]),
                 "at_type": input_data["at_report"]["at_type"],
                 "non_detection": {
@@ -761,7 +761,10 @@ def tns_report_details(candidate):
     dataproduct = CandidateDataProduct.objects.filter(candidate=candidate,data_product_type='json').first()
     file = dataproduct.datafile
     file_content = file.read().decode('utf-8')  # Decode to string
-    return json.loads(file_content)
+    data = json.loads(file_content)
+    #reporter logic here
+    data["at_report"]["reporter"] = "R. Konno (WIS), E. Zimmerman (WIS), A. Horowicz (WIS), S. Garrappa (WIS), E. O. Ofek (WIS), S. Ben-Ami (WIS), D. Polishook (WIS), O. Yaron (WIS), P. Chen (WIS), A. Krassilchtchikov (WIS), Y. M. Shani (WIS), E. Segre (WIS), A. Gal-Yam (WIS), S. Spitzer (WIS), and K. Rybicki (WIS) on behalf of the LAST Collaboration"
+    return data
 
 def send_tns_report(candidate):
     """
