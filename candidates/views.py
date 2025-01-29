@@ -1,5 +1,5 @@
 from .forms import FileUploadForm
-from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report,update_candidate_cutouts,tns_report_details
+from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report,update_candidate_cutouts,tns_report_details,get_horizons_data
 from .models import Candidate,CandidateDataProduct,CandidateAlert
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -10,7 +10,8 @@ from django.utils.timezone import now
 from django.utils.dateparse import parse_datetime
 from django.db.models import Subquery, OuterRef
 from django.contrib.auth.decorators import login_required, user_passes_test
-import json
+from collections import defaultdict
+
 
 def upload_file_view(request):
     """
@@ -273,6 +274,8 @@ def tns_report_view(request, candidate_id):
     filter_value = request.GET.get('filter_value')
     start_datetime = request.GET.get('start_datetime')
     end_datetime = request.GET.get('end_datetime')
+    page = request.GET.get('page')
+    items_per_page = request.GET.get('items_per_page', 25)
     candidate = get_object_or_404(Candidate, id=candidate_id)
 
     report = tns_report_details(candidate)
@@ -294,6 +297,8 @@ def tns_report_view(request, candidate_id):
         'filter_value': filter_value,
         'start_datetime': start_datetime,
         'end_datetime': end_datetime,
+        'page': page,
+        'items_per_page': items_per_page,
     })
 
 def update_cutouts_view(request, candidate_id):
@@ -317,12 +322,68 @@ def candidate_detail(request, candidate_id):
     filter_value = request.GET.get('filter_value')
     start_datetime = request.GET.get('start_datetime')
     end_datetime = request.GET.get('end_datetime')
+    page = request.GET.get('page')
+    items_per_page = request.GET.get('items_per_page', 25)
     candidate = get_object_or_404(Candidate, id=candidate_id)
+
+
+    # Separate PS1 & SDSS cutouts
+    ps1_cutout = candidate.data_products.filter(data_product_type="ps1").first()
+    sdss_cutout = candidate.data_products.filter(data_product_type="sdss").first()
+    # Group cutouts by the minute they were created
+    grouped_cutouts = defaultdict(list)  
+
+    for cutout in candidate.data_products.filter(data_product_type__in=['ref', 'new', 'diff']):
+        cutout_time = cutout.created_at.strftime("%Y-%m-%d %H:%M")  # Extract minute
+        grouped_cutouts[cutout_time].append(cutout)  
+
     context = {
         'candidate': candidate,
         'photometry_graph': generate_photometry_graph(candidate),
         'filter_value': filter_value,
         'start_datetime': start_datetime,
         'end_datetime': end_datetime,
+        'page': page,
+        'items_per_page': items_per_page,
+        'ps1_cutout': ps1_cutout,
+        'sdss_cutout': sdss_cutout,
+        'grouped_cutouts': dict(sorted(grouped_cutouts.items(), reverse=True)),  # Sort by newest first
     }
     return render(request, 'candidates/candidate_detail.html', context)
+
+def horizons_view(request, candidate_id):
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    try: 
+        data = get_horizons_data(candidate_id)
+        results = [
+        {
+            "object_name": row[0],
+            "dist_norm": row[5],
+            "visual_mag": row[6],
+            "ra_rate": row[7],
+            "dec_rate": row[8],
+        }
+        for row in data["data_second_pass"]
+    ]
+        results = sorted(results, key=lambda x: float(x["dist_norm"]))
+    except Exception as e:
+        messages.error(request, f"Failed to get data from Horizons: {e}")
+        return redirect('candidates:list')
+
+    #redirect values
+    filter_value = request.GET.get('filter_value')
+    start_datetime = request.GET.get('start_datetime')
+    end_datetime = request.GET.get('end_datetime')
+    page = request.GET.get('page')
+    items_per_page = request.GET.get('items_per_page', 25)
+
+    context = {
+        'candidate': candidate,
+        'results' : results,
+        'filter_value': filter_value,
+        'start_datetime': start_datetime,
+        'end_datetime': end_datetime,
+        'page': page,
+        'items_per_page': items_per_page,
+    }
+    return render(request, 'candidates/horizon.html', context)

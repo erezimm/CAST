@@ -14,6 +14,7 @@ urlpatterns = [
     path('update/<int:candidate_id>/', views.update_real_bogus_view, name='update_real_bogus'),
     path('send_tns/<int:candidate_id>/', views.send_tns_report_view, name='send_tns_report'),
     path('tns_report/<int:candidate_id>/', views.tns_report_view, name='tns_report_details'),
-    path('update_cutouts/<int:candidate_id>/', views.update_cutouts_view, name='update_candidate_cutouts')
+    path('update_cutouts/<int:candidate_id>/', views.update_cutouts_view, name='update_candidate_cutouts'),
+    path('horizon/<int:candidate_id>/', views.horizons_view, name='horizon'),
     
 ]

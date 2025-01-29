@@ -60,19 +60,19 @@
             <ul class="pagination">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}" aria-label="Previous">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Previous">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
                     <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}">{{ num }}</a>
                     </li>
                 {% endfor %}
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}" aria-label="Next">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>
@@ -148,7 +148,9 @@
                                 {% for cutout in item.cutouts %}
                                     {% if cutout.data_product_type|lower == 'ps1' %}
                                         <div style="text-align: center;">
+                                            <a href="https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos={{ item.candidate.ra }}+{{ item.candidate.dec }}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=">
                                             <img src="{{ cutout.datafile.url }}" alt="Pan-STARRS Cutout" style="max-width: 240px; height: auto;">
+                                            </a>
                                             <div>
                                                 <small>Pan-STARRS</small>
                                             </div>
@@ -159,22 +161,15 @@
                                 {% for cutout in item.cutouts %}
                                 {% if cutout.data_product_type|lower == 'sdss' %}
                                     <div style="text-align: center;">
+                                        <a href="http://skyserver.sdss.org/dr17/en/tools/chart/navi.aspx?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}">
                                         <img src="{{ cutout.datafile.url }}" alt="SDSS Cutout" style="max-width: 240px; height: auto;">
+                                        </a>
                                         <div>
                                             <small>SDSS</small>
                                         </div>
                                     </div>
                                     {% endif %}
                                 {% endfor %}
-                                <!-- <div style="text-align: center;">
-                                    <img
-                                    src="https://skyserver.sdss.org/dr16/SkyServerWS/ImgCutout/getjpeg?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}&scale=0.2&width=240&height=240&opt=G"
-                                    alt="SDSS Cutout" style="max-width: 240px; height: auto;">
-                                    <div>
-                                        <small>SDSS</small>
-                                    </div>
-                                </div>
-                            </div> -->
                         {% else %}
                             No cutouts available.
                         {% endif %}
@@ -234,13 +229,34 @@
                         target="_blank">
                          Simbad Lookup
                         </a>
+                        {% if not item.candidate.tns_name%}
+                            <!-- Check TNS-->
+                            <a href="https://www.wis-tns.org/search?ra={{ item.candidate.ra }}&decl={{ item.candidate.dec }}&radius=5&coords_unit=arcsec"
+                            class="btn btn-sm btn-secondary text-white"
+                            style="background-color: rgb(45, 183, 188); border-color: rgb(45, 183, 188);" 
+                            target="_blank">
+                                TNS Lookup
+                            </a>
+                        {% endif %}
+                        <!-- Check skyserver -->
+                        <!-- <a href="http://skyserver.sdss.org/dr17/en/tools/chart/navi.aspx?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}"
+                        class="btn btn-sm btn-secondary text-white"
+                        target="_blank">
+                            Skyserver
+                        </a> -->
+                        <!-- Check horizons -->
+                        <form method="POST" action="{% url 'candidates:horizon' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <button type="submit" class="btn btn-sm btn-secondary text-white">Check Horizons</button>
+                        </form>
                         <!-- Send TNS Report Button -->
                         {% if item.candidate.reported_by_LAST %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Reported to TNS</button>
                         {% elif item.candidate.real_bogus is False %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Target is Bogus</button>
                         {% else %}
-                        <form method="POST" action="{% url 'candidates:tns_report_details' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:tns_report_details' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
                             <button type="submit" class="btn btn-sm btn-warning">Send TNS Report</button>
@@ -269,19 +285,19 @@
             <ul class="pagination">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}" aria-label="Previous">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Previous">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
                     <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}">{{ num }}</a>
                     </li>
                 {% endfor %}
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}" aria-label="Next">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>

@@ -8,6 +8,7 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
 """
 import os
 from django.core.wsgi import get_wsgi_application
+import django
 import sys
 
 # Add the parent directory to Python path
@@ -16,4 +17,5 @@ sys.path.append('/home/erezz/make-tom/erez_tom')
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'erez_tom.settings')
 
+django.setup()
 application = get_wsgi_application()

@@ -29,6 +29,10 @@ import pandas as pd
 from collections import OrderedDict
 import time
 import traceback
+from astropy.coordinates import SkyCoord
+import astropy.units as u
+import pandas as pd
+
 
 def cone_search_filter_candidates(queryset, ra, dec, radius):
     """
@@ -84,7 +88,7 @@ def create_candidate_cutouts(candidate, file_name, product_type):
                 candidate=candidate,
                 datafile=wrapped_file,
                 data_product_type=product_type,
-                name=f'{candidate.name}_{product_type}_cutout'
+                name=f'{wrapped_file.name}_{product_type}_cutout'
             )
     else:
         print(f"Error: File {file_name} does not exist.")
@@ -142,6 +146,11 @@ def fetch_ps1_cutout(ra, dec):
     return None
 
 def fetch_sdss_cutout(ra, dec):
+    """
+    Fetches an SDSS color composite cutout image for a given RA/Dec.
+    :param ra: Right Ascension in degrees.
+    :param dec: Declination in degrees.
+    """
     url = f'https://skyserver.sdss.org/dr16/SkyServerWS/ImgCutout/getjpeg?ra={ra}&dec={dec}&scale=0.2&width=240&height=240&opt=G'
     print(url)
     try:
@@ -174,7 +183,7 @@ def save_alert(candidate,discovery_datetime,filename,last_report = None):
     #create the alert
         alert = CandidateAlert.objects.create(
             candidate = candidate,
-            filename = filename,
+            filename = os.path.basename(filename),
             discovery_datetime = discovery_datetime,
             mount = mount,
             camera = camera,
@@ -283,8 +292,10 @@ def process_json_file(file):
             candidate=existing_candidate,
             datafile=wrapped_file,
             data_product_type='json',
-            name=os.path.basename(file.name)
+            name = wrapped_file.name
             )
+            #update candidate cutouts
+            update_candidate_cutouts(existing_candidate)
         return None
 
     # Save to the database
@@ -346,17 +357,8 @@ def process_json_file(file):
         except Exception as e:
             print(f"Error adding photometry: {e}")
 
-        #Reference images ingestion
-        ref_cutout = last_report.get('ref_cutout')
-        new_cutout = last_report.get('new_cutout')
-        diff_cutout = last_report.get('diff_cutout')
-
-        if ref_cutout:
-            create_candidate_cutouts(candidate, ref_cutout, 'ref')
-        if new_cutout:
-            create_candidate_cutouts(candidate, new_cutout, 'new')
-        if diff_cutout:
-            create_candidate_cutouts(candidate, diff_cutout, 'diff')
+        #cutout images ingestion
+        update_candidate_cutouts(candidate)
     
     #PS1 cutout
     try:
@@ -374,6 +376,7 @@ def process_json_file(file):
     try:
         sdss_cutout = fetch_sdss_cutout(ra, dec)
     except Exception as e:
+        print(f"Error fetching SDSS cutout for candidate {candidate.id}: {e}")
         sdss_cutout = None
     if sdss_cutout:
         CandidateDataProduct.objects.create(
@@ -523,7 +526,6 @@ def update_candidate_cutouts(candidate):
         ref_cutout = last_alert.ref_cutout_filename
         new_cutout = last_alert.new_cutout_filename
         diff_cutout = last_alert.diff_cutout_filename
-        print(ref_cutout,new_cutout,diff_cutout)
         try:
             if ref_cutout:
                 create_candidate_cutouts(candidate, ref_cutout, 'ref')
@@ -820,3 +822,39 @@ def send_tns_report(candidate):
                 except Exception as e:
                     print(f"Error saving candidate: {e}")
                 print(candidate.tns_name)
+
+def get_horizons_data(candidate_id):
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    ra = candidate.ra
+    dec = candidate.dec
+    obstime = candidate.discovery_datetime.strftime('%Y-%m-%d_%H:%M:%S')
+    coord = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame='icrs')
+    ra_hms = coord.ra.to_string(unit=u.hour, sep='-', precision=2, pad=True)  # RA in hh:mm:ss.ss
+    dec_dms = coord.dec.to_string(unit=u.degree, sep='-', precision=2, alwayssign=True, pad=True).strip("+")  # Dec in dd:mm:ss.ss
+    # API endpoint
+    base_url = "https://ssd-api.jpl.nasa.gov/sb_ident.api"
+
+    # Define parameters for the query
+    params = {
+        # "mpc-code": "097",  # Wise Observatory (MPC code)
+        "lat": "30.053169", # Latitude of the observatory in Neot Smadar (degrees)
+        "lon": "35.041526",  # Longitude of the observatory in Neot Smadar(degrees)
+        "alt": "0.405", # Altitude of the observatory in Neot Smadar(km)
+        "obs-time": obstime,  # Observation time (UTC format)
+        "fov-ra-center": ra_hms,  # RA of the center of the field of view (hh-mm-ss.ss)
+        "fov-dec-center": dec_dms,  # Dec of the center of the field of view (dd-mm-ss.ss)
+        "fov-ra-hwidth": 0.27778,  # Half-width of the field of view in RA (degrees)
+        "fov-dec-hwidth": 0.27778,  # Half-width of the field of view in Dec (degrees)
+        "two-pass": True,  # Use high-precision numerical integration
+        "mag-required": True,  # Require magnitude data
+        "vmag-lim": 22.0,  # Visual magnitude threshold
+        "req-elem": False,  # Do not request orbital elements
+    }
+
+    # Make the API request
+    response = requests.get(base_url, params=params)
+    data = response.json()
+    if data['data_first_pass']:
+        return data
+    else:
+        return None

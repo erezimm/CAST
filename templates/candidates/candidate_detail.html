@@ -11,10 +11,15 @@
         <div class="col-md-6">
             <h4>General Information</h4>
             <ul class="list-group">
-                <li class="list-group-item"><strong>RA:</strong> {{ candidate.ra |floatformat:-6}}</li>
-                <li class="list-group-item"><strong>DEC:</strong> {{ candidate.dec |floatformat:-6}}</li>
+                <li class="list-group-item"><strong>Coordinates (RA, Dec):</strong> {{ candidate.ra |floatformat:-6}}, {{ candidate.dec |floatformat:-6}}</li>
+                <!-- <li class="list-group-item"><strong>DEC:</strong> {{ candidate.dec |floatformat:-6}}</li> -->
                 <li class="list-group-item"><strong>Discovery Date:</strong> {{ candidate.discovery_datetime|date:"Y-m-d H:i" }}</li>
+                {% if candidate.tns_name %}
+                <li class="list-group-item"><strong>IAU Name:</strong> <a href="https://www.wis-tns.org/object/{{ candidate.tns_name }}" target="_blank">
+                    {{ candidate.tns_name }}</a></li>
+                {% endif %}
             </ul>
+            <p> </p>
             <h4>Alerts</h4>
             <p>Number of alerts: {{ candidate.alert.count }}</p>
             <div class="row">
@@ -28,16 +33,22 @@
                                     <b>Mount:</b> {{ alert.mount }}<br>
                                     <b>Camera:</b> {{ alert.camera }}<br>
                                     <b>Field:</b> {{ alert.fieldid }}<br>
-                                    <b>Sub image:</b> {{ alert.subimage }}<br>
-                                    <!-- <b>File name:</b> {{ alert.filename }}<br> -->
+                                    <b>Sub Image:</b> {{ alert.subimage }}<br>
                                 </p>
+                                {% with candidate.data_products.all as json_files %}
+                                {% for data_product in json_files %}
+                                    {% if data_product.data_product_type == 'json' and data_product.name|slice:":-12" in alert.filename %}
+                                        <a href="{{ data_product.datafile.url }}" class="btn btn-sm btn-primary" download>Download JSON</a>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endwith %}
                             </div>
                         </div>
                     </div>
                 {% endfor %}
             </div>
         </div>
-
+        
         <!-- Photometry -->
         <div class="col-md-6">
             <h4>Photometry</h4>
@@ -46,42 +57,65 @@
             {% else %}
                 <p>No photometry data available.</p>
             {% endif %}
+            <p> </p>
+            <!-- PS1 & SDSS Cutouts -->
+            <div class="col-md-12">
+                <h4>Survey Cutouts</h4>
+                <div class="d-flex justify-content-center align-items-center gap-4 flex-nowrap">
+                    {% for cutout in candidate.data_products.all %}
+                        {% if cutout.data_product_type == "ps1" %}
+                            <div class="text-center" style="display: inline-block;">
+                                <a href="https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos={{ candidate.ra }}+{{ candidate.dec }}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240&output_size=0&verbose=0&autoscale=99.500000&catlist=" target="_blank">
+                                    <img src="{{ cutout.datafile.url }}" alt="Pan-STARRS Cutout" class="img-fluid" style="max-width: 240px; height: auto;">
+                                </a>
+                                <div>
+                                    <small>Pan-STARRS</small>
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% if cutout.data_product_type == "sdss" %}
+                            <div class="text-center" style="display: inline-block;">
+                                <a href="http://skyserver.sdss.org/dr17/en/tools/chart/navi.aspx?ra={{ candidate.ra }}&dec={{ candidate.dec }}" target="_blank">
+                                    <img src="{{ cutout.datafile.url }}" alt="SDSS Cutout" class="img-fluid" style="max-width: 240px; height: auto;">
+                                </a>
+                                <div>
+                                    <small>SDSS</small>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 
     <hr>
     <!-- Data Products -->
     <h4>Cutouts</h4>
-    {% if candidate.data_products.all %}
-        <div class="row">
-            {% for data_product in candidate.data_products.all %}
-                {% if data_product.data_product_type|lower not in 'json' %}
-                    {% if data_product.datafile %}
-                    <div class="col-md-4">
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <h5 class="card-title">{{ data_product.data_product_type }}</h5>
-                                <p class="card-text">
-                                    <!-- <strong>Type:</strong> {{ data_product.data_product_type }}<br> -->
-                                    <div style="text-align: center;">
-                                        <img src="{{ data_product.datafile.url }}" alt="{{ data_product.name }}" style="max-width: 240px; height: auto;">
-                                        <div>
-                                            <small>{{ cutout.data_product_type|title }}</small>
-                                        </div>
-                                    </div>
-                                <!-- </p>
-                                    <a href="{{ data_product.datafile.url }}" class="btn btn-sm btn-primary" target="_blank">Download</a> -->
+    {% if  grouped_cutouts %}
+        {% for time, cutouts in grouped_cutouts.items %}
+            <div class="col-md-12">
+                <h5 class="mt-3">{{ time }}</h5>
+            </div>
+            <div class="row">
+                {% for cutout in cutouts %}
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ cutout.data_product_type }}</h5>
+                            <div style="text-align: center;">
+                                <img src="{{ cutout.datafile.url }}" alt="{{ cutout.name }}" style="max-width: 240px; height: auto;">
                             </div>
                         </div>
                     </div>
-                    {% endif %}
-                {% endif %}
-            {% endfor %}
-        </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
     {% else %}
-        <p>No data products available.</p>
+        <p>No cutouts available.</p>
     {% endif %}
 
-    <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}" class="btn btn-secondary mt-4">Back to Candidate List</a>
+    <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}{% if page %}&page={{ page }}{% endif %}{% if items_per_page %}&items_per_page={{ items_per_page }}{% endif %}#candidate-{{ candidate.id }}" class="btn btn-secondary mt-4">Back to Candidate List</a>
 </div>
 {% endblock %}

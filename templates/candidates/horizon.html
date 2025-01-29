@@ -1,0 +1,43 @@
+{% extends 'tom_common/base.html' %}
+{% block title %}Search Results{% endblock %}
+{% block content %}
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<div class="container mt-4">
+<h1>Horizon results for {{ candidate.name }}</h1>
+
+<!-- Results Section -->
+{% if results %}
+    <table class="table table-bordered">
+        <tbody>
+            <thead class="thead-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Distance from Center (Norm; arcsec)</th>
+                    <th>Visual Magnitude (mag)</th>
+                    <th>RA Rate (arcsec/h)</th>
+                    <th>Dec Rate (arcsec/h)</th>
+                </tr>
+            </thead>
+            {% for result in results %}
+            <tbody>
+            <tr>
+                <td>{{ result.object_name }}</td>
+                <td>{{ result.dist_norm }}</td>
+                <td>{{ result.visual_mag }}</td>
+                <td>{{ result.ra_rate }}</td>
+                <td>{{ result.dec_rate }}</td>
+            </tr>
+        </tbody>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No results found.</p>
+{% endif %}
+    <!-- Back to Search -->
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}{% if page %}&page={{ page }}{% endif %}{% if items_per_page %}&items_per_page={{ items_per_page }}{% endif %}#candidate-{{ candidate.id }}"
+        class="btn btn-danger"> Back to Candidate List</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,20 +1,11 @@
-{% extends 'candidates/base_candidates.html' %}
+{% extends 'tom_common/base.html' %}
 {% block title %}TNS Report for {{ candidate.name }}{% endblock %}
 {% block content %}
 
 <div class="container mt-4">
     <h1>TNS Report for {{ candidate.name }}</h1>
+    <h4>Pleas check the details below before sending the report</h4>
     <hr>
-    <!-- Back and Send Report Buttons -->
-    <div class="d-flex justify-content-between mb-4">
-        <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}"
-        class="btn btn-danger"> Back to Candidate List</a>
-        <form method="POST" action="{% url 'candidates:send_tns_report' candidate.id %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success">Send Report</button>
-        </form>
-    </div>
-
     <!-- Report Details -->
     <h4>Report Details</h4>
     <table class="table table-bordered">
@@ -32,7 +23,7 @@
                 <td>{{ report_details.detection_mag }} mag</td>
             </tr>
             <tr>
-                <th>Last non-detection (Date, limit)</th>
+                <th>Last non-detection</th>
                 <td>{{ report_details.last_non_detection }}</td>
             </tr>
             <tr>
@@ -45,6 +36,15 @@
             </tr>
         </tbody>
     </table>
+    <!-- Back and Send Report Buttons -->
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}{% if page %}&page={{ page }}{% endif %}{% if items_per_page %}&items_per_page={{ items_per_page }}{% endif %}#candidate-{{ candidate.id }}"
+        class="btn btn-danger"> Back to Candidate List</a>
+        <form method="POST" action="{% url 'candidates:send_tns_report' candidate.id %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Send Report</button>
+        </form>
+    </div>
 </div>
 
 {% endblock %}
