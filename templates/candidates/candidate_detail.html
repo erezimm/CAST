@@ -11,7 +11,13 @@
         <div class="col-md-6">
             <h4>General Information</h4>
             <ul class="list-group">
-                <li class="list-group-item"><strong>Coordinates (RA, Dec):</strong> {{ candidate.ra |floatformat:-6}}, {{ candidate.dec |floatformat:-6}}</li>
+                <li class="list-group-item">
+                    <strong>Coordinates</strong><br />
+                    <strong>RA:</strong> {{ candidate.ra |floatformat:-6}} ({{ coords.ra_hms}})<br />
+                    <strong>Dec:</strong> {{ candidate.dec |floatformat:-6}} ({{ coords.dec_dms }})<br />
+                    <strong>l, b:</strong> {{ coords.l |floatformat:-6}}, {{ coords.b |floatformat:-6}}
+                </li>
+                <!-- <li class="list-group-item"><strong>Coordinates (l, b):</strong> {{ coords.l |floatformat:-6}}, {{ coords.b |floatformat:-6}}</li> -->
                 <!-- <li class="list-group-item"><strong>DEC:</strong> {{ candidate.dec |floatformat:-6}}</li> -->
                 <li class="list-group-item"><strong>Discovery Date:</strong> {{ candidate.discovery_datetime|date:"Y-m-d H:i" }}</li>
                 {% if candidate.tns_name %}

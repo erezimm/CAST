@@ -11,6 +11,8 @@ from django.utils.dateparse import parse_datetime
 from django.db.models import Subquery, OuterRef
 from django.contrib.auth.decorators import login_required, user_passes_test
 from collections import defaultdict
+from astropy.coordinates import SkyCoord
+import astropy.units as u
 
 
 def upload_file_view(request):
@@ -326,6 +328,13 @@ def candidate_detail(request, candidate_id):
     items_per_page = request.GET.get('items_per_page', 25)
     candidate = get_object_or_404(Candidate, id=candidate_id)
 
+    # Get the candidate's coordinates
+    coord = SkyCoord(ra=candidate.ra*u.degree, dec=candidate.dec*u.degree, frame='icrs')
+    ra_hms = coord.ra.to_string(unit=u.hour, sep=':', precision=2, pad=False)  # RA in hh:mm:ss.ss
+    dec_dms = coord.dec.to_string(unit=u.degree, sep=':', precision=2, alwayssign=True, pad=False)  # Dec in dd:mm:ss.ss
+    l = coord.galactic.l.degree
+    b = coord.galactic.b.degree
+    coords = {'l': l, 'b': b,'ra_hms': ra_hms, 'dec_dms': dec_dms}
 
     # Separate PS1 & SDSS cutouts
     ps1_cutout = candidate.data_products.filter(data_product_type="ps1").first()
@@ -348,6 +357,7 @@ def candidate_detail(request, candidate_id):
         'ps1_cutout': ps1_cutout,
         'sdss_cutout': sdss_cutout,
         'grouped_cutouts': dict(sorted(grouped_cutouts.items(), reverse=True)),  # Sort by newest first
+        'coords': coords,
     }
     return render(request, 'candidates/candidate_detail.html', context)
 
