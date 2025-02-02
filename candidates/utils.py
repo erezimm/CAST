@@ -1,6 +1,6 @@
 from .models import Candidate,CandidatePhotometry,CandidateDataProduct,CandidateAlert
 from tom_targets.models import Target
-from tom_targets.utils import cone_search_filter
+# from tom_targets.utils import cone_search_filter
 from django.shortcuts import get_object_or_404
 from django.db.models import ExpressionWrapper, FloatField
 from django.db.models.functions import ACos, Cos, Radians, Pi, Sin
@@ -34,6 +34,45 @@ import astropy.units as u
 import pandas as pd
 
 
+def cone_search_filter(queryset, ra, dec, radius):
+    """
+    Executes cone search by annotating each target with separation distance from the specified RA/Dec.
+    Formula is from Wikipedia: https://en.wikipedia.org/wiki/Angular_distance
+    The result is converted to radians.
+
+    Cone search is preceded by a square search to reduce the search radius before annotating the queryset, in
+    order to make the query faster.
+
+    :param queryset: Queryset of Target objects
+    :type queryset: Target
+
+    :param ra: Right ascension of center of cone.
+    :type ra: float
+
+    :param dec: Declination of center of cone.
+    :type dec: float
+
+    :param radius: Radius of cone search in degrees.
+    :type radius: float
+    """
+    ra = np.round(ra,7)
+    dec = np.round(dec,7)
+    # radius = float(radius)
+    double_radius = radius * 2
+    queryset = queryset.filter(
+        ra__gte=ra - double_radius, ra__lte=ra + double_radius,
+        dec__gte=dec - double_radius, dec__lte=dec + double_radius
+    )
+
+    separation = ExpressionWrapper(
+            180 * ACos(
+                (Sin(radians(dec)) * Sin(Radians('dec'))) +
+                (Cos(radians(dec)) * Cos(Radians('dec')) * Cos(radians(ra) - Radians('ra')))
+            ) / Pi(), FloatField()
+        )
+
+    return queryset.annotate(separation=separation).filter(separation__lte=radius)
+
 def cone_search_filter_candidates(queryset, ra, dec, radius):
     """
     Executes cone search by annotating each candidate with separation distance from the specified RA/Dec.
@@ -60,7 +99,7 @@ def cone_search_filter_candidates(queryset, ra, dec, radius):
     radius = float(radius)
 
     # Double radius for the bounding box square search
-    double_radius = radius * 2
+    # double_radius = radius * 2
 
     # Square pre-filter: limit candidates to a bounding box to improve performance
     # queryset = queryset.filter(
@@ -441,8 +480,7 @@ def check_target_exists_for_candidate(candidate_id, radius_arcsec=3):
 
     # Perform a cone search around the candidate's RA/Dec
     queryset = Target.objects.all()
-    matching_targets = cone_search_filter(queryset, float(candidate.ra), float(candidate.dec), radius_deg)
-
+    matching_targets = cone_search_filter(queryset, candidate.ra, candidate.dec, radius_deg)
     # Return the first matching target if any, or None
     return matching_targets.first()
 
