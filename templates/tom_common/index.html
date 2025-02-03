@@ -18,6 +18,11 @@
         <li>
           Check out the <a href="https://drive.google.com/drive/folders/1DbcFfsUUyRnyUG2AGwnMVRAS89_b1TE1?usp=drive_link" title="LAST observer manual" target="_blank">Observation logs
           </a> to see what happened during the last shift!
+        </li>
+        <li>
+          If you have issues, please report them to the <a href="https://github.com/blumzi/LAST_issues" title="LAST issues" target="_blank"> LAST issues
+          </a> Github page.
+        </li>
         <!-- <li>
           <a href="{% url 'targets:create' %}" title="Create Target">Add targets if you wish</a>.
         </li> -->
@@ -30,6 +35,12 @@
         Latest Targets
       </div>
       {% recent_targets %}
+    <div class="card">
+        <div class="card-header">
+          Latest Comments
+        </div>
+        {% recent_comments %}
+      </div>
   </div>
     <!-- <ul>
       <li>
@@ -58,20 +69,25 @@
   </div>
   <div class="col-md-4">
     <div style="margin-top: 20px;">
-        <h2>Real-Time Cloud Cover</h2>
+        <h2>Weather Forecast</h2>
+        <h4>Real-Time Cloud Cover</h4>
         <iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" 
         src="https://widgets.meteox.com/en-GB/widgets/radar/location/314182/satellite?z=8"
         style="width:100%; height:600px; max-width:600px; max-height:600px; padding:0px; border:none; box-sizing:border-box;" 
         scrolling="no" 
         frameborder="0">
     </iframe>
-    </div>
-    
-    <div class="card">
-      <div class="card-header">
-        Latest Comments
-      </div>
-      {% recent_comments %}
+    <p>
+      <a href="https://zoom.earth/maps/satellite/#view=31.666,34.57,6z" title="Zoom satellite view" target="_blank">Zoom Satellite View
+    </p>
+    <p>
+      <a href="https://www.meteoblue.com/en/weather/outdoorsports/seeing/ne’ot-semadar_israel_8346527" title="Weather Forecast" target="_blank">Astronomical Weather Forecast
+      </a>
+    </p>
+    <p>
+      <a href="https://www.yr.no/en/forecast/daily-table/2-8346527/Israel/Southern%20District/Ne%E2%80%99ot%20Semadar" title="Weather Forecast" target="_blank">yr.no Weather Forecast
+      </a>
+    </p>
     </div>
 </div>
 {% endblock %}
