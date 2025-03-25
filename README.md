@@ -1,17 +1,34 @@
-# CAST
+# CAST: Candidate Alert System for Transients
 
-**CAST** is a Django-based Target and Observation Manager (TOM) system designed to facilitate the management and observation of astronomical targets. This system extends the capabilities of the [TOM Toolkit](https://github.com/TOMToolkit/tom_base) by integrating a custom `candidates` application and configuring specific settings for transient observations.
+**CAST** is a Django-based Target and Observation Manager (TOM) system designed to manage and follow up on astronomical transient candidates. It builds on the [TOM Toolkit](https://github.com/TOMToolkit/tom_base) and adds custom functionality such as real/bogus scoring, Transient Name Server (TNS) integration, and transient tracking utilities.
 
-## Installation Guide
+---
 
-Follow these steps to set up and run **Project Name** on your local machine.
+## 🚀 Installation
 
-### 1. Install the TOM Toolkit
+### 1. Install a Base TOM System
 
-Begin by installing the base TOM system provided by the TOM Toolkit. This toolkit serves as the foundation for building customized TOM systems.
+First, install a basic TOM system by following the instructions at:  
+👉 https://github.com/TOMToolkit/tom_base
 
-1. **Create and activate a virtual environment** (recommended):
+This sets up a Django-based TOM project that CAST builds upon.
 
-   ```bash
-   python -m venv tom_env
-   source tom_env/bin/activate  # On Windows use `tom_env\Scripts\activate`
+---
+
+### 2. Install the `candidates` App
+
+Once your TOM base project is running, install the `candidates` application:
+
+1. **Copy or clone the `candidates` app** into your TOM project directory.
+
+2. **Add it to your Django `INSTALLED_APPS`** in `settings.py`:
+
+   ```python
+   INSTALLED_APPS = [
+       # ... existing apps
+       'candidates',
+   ]
+2. **Run database migrations**:
+      ```python
+   python manage.py makemigrations candidates
+   python manage.py migrate
