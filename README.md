@@ -1,6 +1,6 @@
-# Project Name
+# CAST
 
-**Project Name** is a Django-based Target and Observation Manager (TOM) system designed to facilitate the management and observation of astronomical targets. This system extends the capabilities of the [TOM Toolkit](https://github.com/TOMToolkit/tom_base) by integrating a custom `candidates` application and configuring specific settings for transient observations.
+**CAST** is a Django-based Target and Observation Manager (TOM) system designed to facilitate the management and observation of astronomical targets. This system extends the capabilities of the [TOM Toolkit](https://github.com/TOMToolkit/tom_base) by integrating a custom `candidates` application and configuring specific settings for transient observations.
 
 ## Installation Guide
 
