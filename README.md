@@ -38,7 +38,7 @@ Once your TOM base project is running, install the `candidates` application:
 1. **Add the following to your `settings.py`**:
    ```python
    # Transients settings
-   TRANSIENT_DIR = '/home/erezz/marvin/transients/'  # Change this to your actual directory
+   TRANSIENT_DIR = '/path/to/marvin/transients/'  # Change this to your actual directory
    ```
 2. **Add your Transient Name Server (TNS) credentials**:
    ```python
