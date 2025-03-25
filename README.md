@@ -29,6 +29,13 @@ Once your TOM base project is running, install the `candidates` application:
        'candidates',
    ]
 2. **Run database migrations**:
-      ```python
+   ```python
    python manage.py makemigrations candidates
    python manage.py migrate
+
+### 3. Update settings.py Configuration
+
+Add the following to your settings.py:
+   ```python
+   # Transients settings
+   TRANSIENT_DIR = '/home/erezz/marvin/transients/'  # Change this to your actual directory
