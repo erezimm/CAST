@@ -1,6 +1,6 @@
 # CAST: Candidate Alert System for Transients
 
-**CAST** is a Django-based Target and Observation Manager (TOM) system designed to manage and follow up on astronomical transient candidates. It builds on the [TOM Toolkit](https://github.com/TOMToolkit/tom_base) and adds custom functionality such as real/bogus scoring, Transient Name Server (TNS) integration, and transient tracking utilities.
+**CAST** is a Target and Observation Manager (TOM) system designed to manage and follow up on astronomical transient candidates from the Large Array Survey Telescope (LAST; [Ofek et al. 2023]([url](https://ui.adsabs.harvard.edu/abs/2023PASP..135f5001O/abstract))). It builds on the [TOM Toolkit](https://github.com/TOMToolkit/tom_base) and adds custom functionality such as a scanning page for the survey through the **Candidates** app.
 
 ---
 
@@ -33,9 +33,29 @@ Once your TOM base project is running, install the `candidates` application:
    python manage.py makemigrations candidates
    python manage.py migrate
 
-### 3. Update settings.py Configuration
+### 3. Update `settings.py` Configuration
 
-Add the following to your settings.py:
+Add the following to your `settings.py`:
    ```python
    # Transients settings
    TRANSIENT_DIR = '/home/erezz/marvin/transients/'  # Change this to your actual directory
+```
+Add your Transient Name Server (TNS) credentials:
+```python
+# TNS API credentials
+TNS_BOT_ID = 'your_tns_bot_id'
+TNS_BOT_NAME = 'your_tns_bot_name'
+TNS_BOT_PASSWORD = 'your_tns_bot_password'
+```
+
+### 4. Final Steps
+
+1. **Collect static files:**
+   ```python
+   python manage.py collectstatic
+   
+3. **Run the development server:**
+   ```python
+   python manage.py runserver
+   
+Open http://127.0.0.1:8000 in your browser to use the application.
