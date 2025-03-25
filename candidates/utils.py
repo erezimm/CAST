@@ -657,7 +657,7 @@ def tns_cone_search(ra, dec, radius=3.0):
     Parameters:
         ra (float): Right Ascension in degrees.
         dec (float): Declination in degrees.
-        radius (float): Search radius in arcminutes.
+        radius (float): Search radius in arcsec.
 
     Returns:
         dict: The response data from the TNS.
@@ -683,7 +683,7 @@ def tns_cone_search(ra, dec, radius=3.0):
             "ra": str(ra),
             "dec": str(dec),
             "radius": str(radius),
-            "units": "arcmin"
+            "units": "arcsec"
         })
     }
     # Perform the request
@@ -792,7 +792,7 @@ def send_tns_reply(id_report):
     response = requests.post(reply_url, headers = headers, data = reply_data,timeout=30)
     return response
 
-def tns_report_details(candidate):
+def tns_report_details(candidate,first_name,last_name):
     """
     Get the TNS report details for a candidate before sending the details
     :param candidate: Candidate instance
@@ -804,10 +804,20 @@ def tns_report_details(candidate):
     file_content = file.read().decode('utf-8')  # Decode to string
     data = json.loads(file_content)
     #reporter logic here
-    data["at_report"]["reporter"] = "R. Konno (WIS), E. Zimmerman (WIS), A. Horowicz (WIS), S. Garrappa (WIS), E. O. Ofek (WIS), S. Ben-Ami (WIS), D. Polishook (WIS), O. Yaron (WIS), P. Chen (WIS), A. Krassilchtchikov (WIS), Y. M. Shani (WIS), E. Segre (WIS), A. Gal-Yam (WIS), S. Spitzer (WIS), and K. Rybicki (WIS) on behalf of the LAST Collaboration"
+    reporters = "R. Konno (WIS), E. A. Zimmerman (WIS), A. Horowicz (WIS), S. Garrappa (WIS), E. O. Ofek (WIS), S. Ben-Ami (WIS), D. Polishook (WIS), O. Yaron (WIS), P. Chen (WIS), A. Krassilchtchikov (WIS), Y. M. Shani (WIS), E. Segre (WIS), A. Gal-Yam (WIS), S. Spitzer (WIS), and K. Rybicki (WIS) on behalf of the LAST Collaboration"
+    if first_name == 'Eran':
+        reporters = reporters.replace(f"{first_name[0]}. O. {last_name} (WIS), ","")
+        reporters = f"{first_name[0]}. O. {last_name} (WIS), {reporters}"
+    elif first_name == 'Erez':
+        reporters = reporters.replace(f"{first_name[0]}. A. {last_name} (WIS), ","")
+        reporters = f"{first_name[0]}. A. {last_name} (WIS), {reporters}"
+    else:
+        reporters = reporters.replace(f"{first_name[0]}. {last_name} (WIS), ","")
+        reporters = f"{first_name[0]}. {last_name} (WIS), {reporters}"
+    data["at_report"]["reporter"] = reporters
     return data
 
-def send_tns_report(candidate):
+def send_tns_report(candidate,first_name,last_name):
     """
     Generate a TNS report based on the original json file
     :param candidate: Candidate instance
@@ -820,7 +830,7 @@ def send_tns_report(candidate):
         # file = dataproduct.datafile
         # file_content = file.read().decode('utf-8')  # Decode to string
         # data = json.loads(file_content)  # Parse the JSON content
-        data = tns_report_details(candidate)
+        data = tns_report_details(candidate,first_name,last_name)
         transformed_json = json.dumps(transform_json_tns(data))
         report = json.loads(StringIO(transformed_json).read(), object_pairs_hook = OrderedDict)
         response = send_json_tns_report(report)

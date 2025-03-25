@@ -203,6 +203,8 @@ def update_real_bogus_view(request, candidate_id):
         else:
             messages.error(request, "Invalid real/bogus value selected.")
             return redirect('candidates:list')
+        user = request.user
+        candidate.real_bogus_user = f"{user.first_name} {user.last_name}"
 
         candidate.save()
         messages.success(request, f"Updated {candidate.name} to {candidate.get_real_bogus_display()}.")
@@ -240,7 +242,8 @@ def send_tns_report_view(request, candidate_id):
     filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
 
     try:
-        send_tns_report(candidate)
+        user = request.user
+        send_tns_report(candidate,user.first_name,user.last_name)
         messages.success(request, f"TNS report successfully sent for {candidate.name}.")
     except Exception as e:
         messages.error(request, f"Failed to send TNS report for {candidate.name}: {e}")
@@ -280,7 +283,8 @@ def tns_report_view(request, candidate_id):
     items_per_page = request.GET.get('items_per_page', 25)
     candidate = get_object_or_404(Candidate, id=candidate_id)
 
-    report = tns_report_details(candidate)
+    user = request.user
+    report = tns_report_details(candidate,user.first_name,user.last_name)
     at_report = report.get('at_report', {})
     # print(at_report)
     report_details = {

@@ -190,7 +190,7 @@
                             <input type="hidden" name="real_bogus" value="real">
                             <button type="submit" class="btn btn-sm btn-success" {% if item.candidate.real_bogus is True %}disabled{% endif %}>
                                 Real
-                            </button>
+                            </button>     
                         </form>
 
                         <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
@@ -200,6 +200,9 @@
                                 Bogus
                             </button>
                         </form>
+                        {% if item.candidate.real_bogus_user %}
+                            <p><b>Set by:</b><br> {{ item.candidate.real_bogus_user }}</p>
+                        {% endif %}
                     </td>
                     <td>
                         {% if item.target %}

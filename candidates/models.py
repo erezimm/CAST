@@ -8,14 +8,14 @@ import requests
 import json
 import os
 
-def tns_cone_search(ra, dec, radius=2.0):
+def tns_cone_search(ra, dec, radius=3.0):
     """
     Perform a cone search on the Transient Name Server.
 
     Parameters:
         ra (float): Right Ascension in degrees.
         dec (float): Declination in degrees.
-        radius (float): Search radius in arcminutes.
+        radius (float): Search radius in arcsec.
 
     Returns:
         dict: The response data from the TNS.
@@ -41,7 +41,7 @@ def tns_cone_search(ra, dec, radius=2.0):
             "ra": str(ra),
             "dec": str(dec),
             "radius": str(radius),
-            "units": "arcmin"
+            "units": "arcsec"
         })
     }
     # Perform the request
@@ -64,6 +64,7 @@ class Candidate(models.Model):
         blank=True,
         default=None  # Default is "neither"
     )
+    real_bogus_user =models.CharField(max_length=100, null=True, blank=True)  # User who classified the candidate
     created_at = models.DateTimeField(auto_now_add=True)
     tns_name = models.CharField(max_length=100, null=True, blank=True)  # TNS name (if reported)
     reported_by_LAST = models.BooleanField(default=False)  # Reported by LAST
