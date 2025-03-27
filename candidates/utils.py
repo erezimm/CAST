@@ -7,7 +7,7 @@ from django.db.models.functions import ACos, Cos, Radians, Pi, Sin
 from django.utils.dateparse import parse_datetime
 from django.conf import settings
 from django.core.files import File  # Import the File wrapper
-from django.utils.timezone import now#,get_current_timezone,make_aware,is_aware
+from django.utils.timezone import now, make_aware#,get_current_timezone,make_aware,is_aware
 from django.utils.safestring import mark_safe
 from django.contrib.auth.models import Group
 from guardian.shortcuts import assign_perm
@@ -18,7 +18,7 @@ from math import radians
 import os
 import json
 import requests
-from datetime import datetime
+from datetime import datetime,timedelta
 import glob
 from io import BytesIO,StringIO
 import plotly.graph_objs as go
@@ -253,12 +253,29 @@ def save_alert(candidate,discovery_datetime,filename,last_report = None):
         )
     return alert
 
-def add_photometry_from_last_report(candidate,last_report,start_jd = 0):
+def photometry_exists(candidate, obs_date, magnitude, magnitude_error, filter_band='clear'):
+    """
+    Check if a photometry entry already exists for a given candidate, observation date, magnitude, and filter.
+    """
+    obs_date = make_aware(obs_date)
+    query = CandidatePhotometry.objects.filter(
+        candidate=candidate,
+        obs_date__gte=obs_date - timedelta(seconds=5),  # Allowing 5s tolerance
+        obs_date__lte=obs_date + timedelta(seconds=5),
+        filter_band=filter_band
+    )
+
+    # Check for both magnitude and magnitude error if it’s a detection
+    if magnitude is not None:
+        query = query.filter(magnitude=magnitude, magnitude_error=magnitude_error)
+    
+    return query.exists()
+
+def add_photometry_from_last_report(candidate,last_report):
     """
     Add photometry data from the json last report.
     :param candidate: Candidate instance
     :param last_report: last report section from the json file
-    :param start_jd: julian day after which to add photometry to be used when the candidate existed prior to current alert.
     """
     detections_jd = np.array(last_report.get('detections_jd', {}))
     detections = last_report.get('detections_mag', {})
@@ -266,31 +283,32 @@ def add_photometry_from_last_report(candidate,last_report,start_jd = 0):
     nondetections_jd = last_report.get('nondetections_jd', {})
     nondetections_mag = last_report.get('nondetections_mag', {})
     for i, jd in enumerate(detections_jd):
-        obs_date = Time(jd,format='jd')
-        if np.round(obs_date.jd,5) > np.round(start_jd,5):
-            print(obs_date.jd, start_jd)
-            magnitude = detections[i]
-            magnitude_error = detections_magerr[i]
+        obs_date = Time(jd,format='jd').to_datetime()
+        magnitude = detections[i]
+        magnitude_error = detections_magerr[i]
+        if not photometry_exists(candidate, obs_date, magnitude, magnitude_error):
             CandidatePhotometry.objects.create(
                 candidate=candidate,
-                obs_date=obs_date.iso,
+                obs_date=obs_date,
                 magnitude=magnitude,
                 magnitude_error=magnitude_error,
                 filter_band='clear',  # Use a mapping if needed to human-readable filter names
                 telescope="LAST",
                 instrument="LAST-CAM"
-        )
+            )
+        else:
+            print("photometry exists")
+
     for i, jd in enumerate(nondetections_jd):
         obs_date = Time(jd,format='jd')
-        if obs_date.jd > start_jd:
-            magnitude = nondetections_mag[i]
-            CandidatePhotometry.objects.create(
-                candidate=candidate,
-                obs_date=obs_date.iso,
-                limit = magnitude,
-                filter_band='clear',  # Use a mapping if needed to human-readable filter names
-                telescope="LAST",
-                instrument="LAST-CAM"
+        magnitude = nondetections_mag[i]
+        CandidatePhotometry.objects.create(
+            candidate=candidate,
+            obs_date=obs_date.iso,
+            limit = magnitude,
+            filter_band='clear',  # Use a mapping if needed to human-readable filter names
+            telescope="LAST",
+            instrument="LAST-CAM"
             )
 
 def process_json_file(file):
@@ -323,8 +341,8 @@ def process_json_file(file):
         save_alert(existing_candidate,discovery_datetime,file.name,last_report)
         if last_report != {}:
             latest_photometry = CandidatePhotometry.objects.filter(candidate = existing_candidate).order_by('-obs_date').first()
-            start_jd = Time(latest_photometry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').jd
-            add_photometry_from_last_report(existing_candidate,last_report,start_jd)
+            # start_jd = Time(latest_photometry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').jd
+            add_photometry_from_last_report(existing_candidate,last_report)
             wrapped_file = File(file)
             wrapped_file.name = os.path.basename(file.name)
             CandidateDataProduct.objects.create(
