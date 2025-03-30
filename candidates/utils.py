@@ -349,7 +349,7 @@ def process_json_file(file):
             latest_photometry = CandidatePhotometry.objects.filter(candidate = existing_candidate).order_by('-obs_date').first()
             # start_jd = Time(latest_photometry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').jd
             add_photometry_from_last_report(existing_candidate,last_report)    
-            query_atlas_api(existing_candidate) # Query ATLAS API for additional photometry data
+            get_atlas_fp(existing_candidate) # Query ATLAS API for additional photometry data
             wrapped_file = File(file)
             wrapped_file.name = os.path.basename(file.name)
             CandidateDataProduct.objects.create(
@@ -418,7 +418,7 @@ def process_json_file(file):
     if last_report != {}:
         try:
             add_photometry_from_last_report(candidate,last_report)
-            query_atlas_api(candidate) # Query ATLAS API for additional photometry data
+            get_atlas_fp(candidate) # Query ATLAS API for additional photometry data
         except Exception as e:
             print(f"Error adding photometry: {e}")
 
@@ -614,47 +614,62 @@ def generate_photometry_graph(candidate):
     if not photometry.exists():
         return None  # If no photometry data, return None
 
-    # Separate detections (magnitude is not empty) and non-detections (magnitude is empty)
-    detections = photometry.exclude(magnitude__isnull=True)
-    non_detections = photometry.filter(magnitude__isnull=True)
-
     # Get the current timezone-aware datetime
     today = now()
 
-    # Prepare data for detections
-    detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in detections]
-    detection_magnitudes = [p.magnitude for p in detections]
-    detection_errors = [p.magnitude_error for p in detections]
-
-    # Prepare data for non-detections
-    non_detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in non_detections]
-    non_detection_limits = [p.limit for p in non_detections]
+    # Distinct list of instrument names with photometry data
+    instruments = list(set(photometry.values_list('instrument', flat=True)))
+    print("Instruments with photometry:", instruments)
 
     # Create the Plotly graph
     fig = go.Figure()
 
-    # Add detections as scatter points with error bars
-    fig.add_trace(go.Scatter(
-        x=detection_days_ago,
-        y=detection_magnitudes,
-        error_y=dict(
-            type='data',
-            array=detection_errors,
-            visible=True
-        ),
-        mode='markers',
-        marker=dict(symbol='circle', size=8, color='#636efa'),
-        name=f"Detections"
-    ))
+    instrument2color = {'LAST-CAM': '#636efa',
+                        'ATLAS_o': '#FFA500', 'ATLAS_c': '#2aa198'}
+    
+    for inst in instruments:
+        
+        inst_photometry = photometry.filter(instrument=inst)
+        print("Total photometry for instrument", inst, ":", inst_photometry.count())
+        
+        # Separate detections (magnitude is not empty) and non-detections (magnitude is empty)
+        detections = inst_photometry.exclude(magnitude__isnull=True)
+        non_detections = inst_photometry.filter(magnitude__isnull=True)
 
-    # Add non-detections as downward arrows
-    fig.add_trace(go.Scatter(
-        x=non_detection_days_ago,
-        y=non_detection_limits,
-        mode='markers',
-        marker=dict(symbol='triangle-down', size=8, color='#636efa'),
-        name=f"Non-Detections"
-    ))
+        # Prepare data for detections
+        detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in detections]
+        detection_magnitudes = [p.magnitude for p in detections]
+        detection_errors = [p.magnitude_error for p in detections]
+
+        # Prepare data for non-detections
+        non_detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in non_detections]
+        non_detection_limits = [p.limit for p in non_detections]
+
+        # Add detections as scatter points with error bars
+        color = instrument2color.get(inst, 'gray')
+        fig.add_trace(go.Scatter(
+            x=detection_days_ago,
+            y=detection_magnitudes,
+            error_y=dict(
+                type='data',
+                array=detection_errors,
+                visible=True
+            ),
+            mode='markers',
+            marker=dict(symbol='circle', size=8, color=color),
+            name=f"{inst} Detections",
+            legendrank=1 if inst == 'LAST-CAM' else 2  # Ensure LAST first
+        ))
+
+        # Add non-detections as downward arrows
+        fig.add_trace(go.Scatter(
+            x=non_detection_days_ago,
+            y=non_detection_limits,
+            mode='markers',
+            marker=dict(symbol='triangle-down', size=8, color=color),
+            name=f"{inst} Non-Detections",
+            legendrank=1 if inst == 'LAST-CAM' else 2  # Ensure LAST first
+        ))
 
     # Customize layout
     fig.update_layout(
@@ -668,6 +683,7 @@ def generate_photometry_graph(candidate):
         legend=dict(
             orientation="v",  # Vertical legend
             x=1,  # Position the legend at the right
+            y=0.5,  # Center the legend
         ),
         margin=dict(l=50, r=0, t=10, b=100),  # Tight margins
         paper_bgcolor="rgba(0,0,0,0)",  # Transparent outer background
@@ -679,14 +695,13 @@ def generate_photometry_graph(candidate):
     return mark_safe(graph_html)
 
 
-def query_atlas_api(candidate, days_ago=10):
+def get_atlas_fp(candidate, days_ago=10):
     """
     Query the ATLAS API for force-photometry data.
     :param candidate: candidate instance
     :param days_ago: Number of days ago for force photometry. Default is 10 days.
     :return: None
     """
-    # return [{'obs_date': '2025-03-22T00:00:00Z', 'magnitude': 20.0, 'magnitude_error': 0.1},]
     
     atlas_settings = settings.BROKERS.get('ATLAS', {})
     username = atlas_settings.get('user_name')
@@ -701,13 +716,11 @@ def query_atlas_api(candidate, days_ago=10):
 
         if resp.status_code == 200:
             token = resp.json()['token']
-            print(f'Your token is {token}')
             headers = {'Authorization': f'Token {token}', 'Accept': 'application/json'}
         else:
             print(f'ERROR {resp.status_code}')
             print(resp.json())
             
-
         task_url = None
         while not task_url:
             with requests.Session() as s:
@@ -734,7 +747,6 @@ def query_atlas_api(candidate, days_ago=10):
                 else:
                     print(f'ERROR {resp.status_code}')
                     print(resp.json())
-                    # sys.exit()
 
         result_url = None
         while not result_url:
@@ -764,10 +776,9 @@ def query_atlas_api(candidate, days_ago=10):
         SNT = 5.
 
         for obs in dfresult.iloc:
-            obs_date = obs_date = Time(obs.MJD,format='mjd').to_datetime()
+            obs_date = Time(obs.MJD,format='mjd').to_datetime()
             if obs.uJy/obs.duJy >= SNT:
-                # Detection
-                magnitude = obs.m
+                magnitude = obs.m  # Detection
                 magnitude_error = obs.dm
                 limit = None
             else:
@@ -783,7 +794,7 @@ def query_atlas_api(candidate, days_ago=10):
                     magnitude_error=magnitude_error,
                     filter_band=obs.F,  # Use a mapping if needed to human-readable filter names
                     telescope="ATLAS",
-                    instrument="ATLAS-?",
+                    instrument=f"ATLAS_{obs.F}",
                     limit=limit
                 )
  
