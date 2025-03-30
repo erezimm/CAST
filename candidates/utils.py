@@ -16,6 +16,8 @@ from django.core.files.base import ContentFile
 from tom_dataproducts.models import ReducedDatum
 from math import radians
 import os
+import io
+import re
 import json
 import requests
 from datetime import datetime,timedelta
@@ -32,6 +34,10 @@ import traceback
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 import pandas as pd
+from astropy.time import Time
+
+
+ATLAS_BASEURL = "https://fallingstar-data.com/forcedphot"
 
 
 def cone_search_filter(queryset, ra, dec, radius):
@@ -342,7 +348,8 @@ def process_json_file(file):
         if last_report != {}:
             latest_photometry = CandidatePhotometry.objects.filter(candidate = existing_candidate).order_by('-obs_date').first()
             # start_jd = Time(latest_photometry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').jd
-            add_photometry_from_last_report(existing_candidate,last_report)
+            add_photometry_from_last_report(existing_candidate,last_report)    
+            query_atlas_api(existing_candidate) # Query ATLAS API for additional photometry data
             wrapped_file = File(file)
             wrapped_file.name = os.path.basename(file.name)
             CandidateDataProduct.objects.create(
@@ -411,6 +418,7 @@ def process_json_file(file):
     if last_report != {}:
         try:
             add_photometry_from_last_report(candidate,last_report)
+            query_atlas_api(candidate) # Query ATLAS API for additional photometry data
         except Exception as e:
             print(f"Error adding photometry: {e}")
 
@@ -600,6 +608,7 @@ def generate_photometry_graph(candidate):
     :return: Safe HTML string for Plotly graph or None if no photometry exists
     """
     # Get photometry data for the candidate
+
     photometry = CandidatePhotometry.objects.filter(candidate=candidate).order_by('obs_date')
 
     if not photometry.exists():
@@ -654,19 +663,139 @@ def generate_photometry_graph(candidate):
         yaxis=dict(autorange="reversed"),  # Magnitude is brighter for lower values
         xaxis=dict(
             title="Days Ago",
-            # dtick=1,  # Adjust tick spacing as needed
             autorange="reversed",  # Reverse the x-axis
+        ),
+        legend=dict(
+            orientation="v",  # Vertical legend
+            x=1,  # Position the legend at the right
         ),
         margin=dict(l=50, r=0, t=10, b=100),  # Tight margins
         paper_bgcolor="rgba(0,0,0,0)",  # Transparent outer background
-        # template="plotly_white",
-        showlegend=False,  # Disable the legend
     )
 
     # Convert the graph to HTML for embedding in the template
     graph_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
     return mark_safe(graph_html)
+
+
+def query_atlas_api(candidate, days_ago=10):
+    """
+    Query the ATLAS API for force-photometry data.
+    :param candidate: candidate instance
+    :param days_ago: Number of days ago for force photometry. Default is 10 days.
+    :return: None
+    """
+    # return [{'obs_date': '2025-03-22T00:00:00Z', 'magnitude': 20.0, 'magnitude_error': 0.1},]
+    
+    atlas_settings = settings.BROKERS.get('ATLAS', {})
+    username = atlas_settings.get('user_name')
+    password = atlas_settings.get('password')
+    if not username or not password:
+        print("ATLAS API credentials not set.")
+        return None
+
+    try:
+        resp = requests.post(url=f"{ATLAS_BASEURL}/api-token-auth/",
+                             data={'username': {username}, 'password': {password}})
+
+        if resp.status_code == 200:
+            token = resp.json()['token']
+            print(f'Your token is {token}')
+            headers = {'Authorization': f'Token {token}', 'Accept': 'application/json'}
+        else:
+            print(f'ERROR {resp.status_code}')
+            print(resp.json())
+            
+
+        task_url = None
+        while not task_url:
+            with requests.Session() as s:
+                resp = s.post(f"{ATLAS_BASEURL}/queue/", headers=headers,
+                              data={'ra': {str(candidate.ra)}, 'dec': {str(candidate.dec)},
+                                    'mjd_min': {Time.now().mjd-days_ago}, 'send_email': False})
+
+                if resp.status_code == 201:  # successfully queued
+                    task_url = resp.json()['url']
+                    print(f'The task URL is {task_url}')
+                elif resp.status_code == 429:  # throttled
+                    message = resp.json()["detail"]
+                    print(f'{resp.status_code} {message}')
+                    t_sec = re.findall(r'available in (\d+) seconds', message)
+                    t_min = re.findall(r'available in (\d+) minutes', message)
+                    if t_sec:
+                        waittime = int(t_sec[0])
+                    elif t_min:
+                        waittime = int(t_min[0]) * 60
+                    else:
+                        waittime = 10
+                    print(f'Waiting {waittime} seconds')
+                    time.sleep(waittime)
+                else:
+                    print(f'ERROR {resp.status_code}')
+                    print(resp.json())
+                    # sys.exit()
+
+        result_url = None
+        while not result_url:
+            with requests.Session() as s:
+                resp = s.get(task_url, headers=headers)
+
+                if resp.status_code == 200:  # HTTP OK
+                    if resp.json()['finishtimestamp']:
+                        result_url = resp.json()['result_url']
+                        print(f"Task is complete with results available at {result_url}")
+                        break
+                    elif resp.json()['starttimestamp']:
+                        print(f"Task is running (started at {resp.json()['starttimestamp']})")
+                    else:
+                        print("Waiting for job to start. Checking again in 10 seconds...")
+                    time.sleep(10)
+                else:
+                    print(f'ERROR {resp.status_code}')
+                    print(resp.json())
+                    # sys.exit()
+
+        with requests.Session() as s:
+            textdata = s.get(result_url, headers=headers).text
+
+        dfresult = pd.read_csv(io.StringIO(textdata.replace("###", "")), delim_whitespace=True)
+
+        SNT = 5.
+
+        for obs in dfresult.iloc:
+            obs_date = obs_date = Time(obs.MJD,format='mjd').to_datetime()
+            if obs.uJy/obs.duJy >= SNT:
+                # Detection
+                magnitude = obs.m
+                magnitude_error = obs.dm
+                limit = None
+            else:
+                magnitude = None  # Non detection
+                limit = obs.mag5sig
+                magnitude_error = None
+            
+            if not photometry_exists(candidate, obs_date, magnitude, magnitude_error):
+                CandidatePhotometry.objects.create(
+                    candidate=candidate,
+                    obs_date=obs_date,
+                    magnitude=magnitude,  # Null if non-detection
+                    magnitude_error=magnitude_error,
+                    filter_band=obs.F,  # Use a mapping if needed to human-readable filter names
+                    telescope="ATLAS",
+                    instrument="ATLAS-?",
+                    limit=limit
+                )
+ 
+    except requests.RequestException as e:
+        print(f"Error querying ATLAS API: {e}")
+        return None
+    
+    except Exception as e:
+        print(f"Error querying ATLAS API: {e}")
+        traceback.print_exc()
+        return None
+
 
 def tns_cone_search(ra, dec, radius=3.0):
     """
