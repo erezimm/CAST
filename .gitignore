@@ -1,4 +1,12 @@
 db.sqlite3
 __pycache__/
-erez_tom/settings*
+_static/
 env/
+custom_code/
+data/
+erez_tom/
+static/
+tmp/
+tom_targets/
+tests.ipynb
+manage.py
