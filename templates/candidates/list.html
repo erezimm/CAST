@@ -182,6 +182,17 @@
                         {% else %}
                         No photometry available.
                         {% endif %}
+                        
+                        <!-- Force Photometry Buttuns -->
+                         <div>
+                            <form method="POST" action="" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="real_bogus" value="real">
+                                <button type="submit" class="btn btn-sm text-white" style="background-color: #FFA500; border-color:#FFA500;">
+                                    Refresh Atlas
+                                </button>     
+                            </form>
+                        </div>
                     </td>
                     <td>
                         <!-- Real/Bogus Buttons -->
