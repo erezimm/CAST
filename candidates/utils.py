@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from .models import Candidate,CandidatePhotometry,CandidateDataProduct,CandidateAlert
 from tom_targets.models import Target
 # from tom_targets.utils import cone_search_filter
@@ -24,6 +25,7 @@ from datetime import datetime,timedelta
 import glob
 from io import BytesIO,StringIO
 import plotly.graph_objs as go
+from plotly.colors import hex_to_rgb, unlabel_rgb
 from astropy.time import Time
 from django.core.files.base import ContentFile
 import numpy as np
@@ -34,7 +36,6 @@ import traceback
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 import pandas as pd
-from astropy.time import Time
 
 
 ATLAS_BASEURL = "https://fallingstar-data.com/forcedphot"
@@ -617,36 +618,68 @@ def generate_photometry_graph(candidate):
     # Get the current timezone-aware datetime
     today = now()
 
-    # Distinct list of instrument names with photometry data
-    instruments = list(set(photometry.values_list('instrument', flat=True)))
-    print("Instruments with photometry:", instruments)
+    # Get unique telescope and filter_band pairs
+    telescope_band_pairs = set(
+        (telescope, band)
+        for telescope in photometry.values_list('telescope', flat=True).distinct()
+        for band in photometry.filter(telescope=telescope).values_list('filter_band', flat=True).distinct()
+    )
 
     # Create the Plotly graph
     fig = go.Figure()
 
-    instrument2color = {'LAST-CAM': '#636efa',
-                        'ATLAS_o': '#FFA500', 'ATLAS_c': '#2aa198'}
+    name2color = {'LAST_clear': '#636efa',
+                  'ATLAS_o': '#FFA500', 'ATLAS_c': '#2aa198'}
     
-    for inst in instruments:
+    for telescope, filter_band in telescope_band_pairs:
         
-        inst_photometry = photometry.filter(instrument=inst)
-        print("Total photometry for instrument", inst, ":", inst_photometry.count())
+        filtered_photometry = photometry.filter(telescope=telescope, filter_band=filter_band)
         
         # Separate detections (magnitude is not empty) and non-detections (magnitude is empty)
-        detections = inst_photometry.exclude(magnitude__isnull=True)
-        non_detections = inst_photometry.filter(magnitude__isnull=True)
+        detections = filtered_photometry.exclude(magnitude__isnull=True).order_by('obs_date')
+        non_detections = filtered_photometry.filter(magnitude__isnull=True).order_by('obs_date')
 
+        binned_detections = bin_photometry_points(detections)
+        binned_non_detections = bin_photometry_points(non_detections)
+
+        
+        # Prepare data for original detections
+        original_detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in detections]
+        original_detection_magnitudes = [p.magnitude for p in detections]
+        original_detection_errors = [p.magnitude_error for p in detections]
+        
         # Prepare data for detections
-        detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in detections]
-        detection_magnitudes = [p.magnitude for p in detections]
-        detection_errors = [p.magnitude_error for p in detections]
+        detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in binned_detections]
+        detection_magnitudes = [p.magnitude for p in binned_detections]
+        detection_errors = [p.magnitude_error for p in binned_detections]
+     
+        # Prepare data for original non-detections
+        original_non_detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in non_detections]
+        original_non_detection_limits = [p.limit for p in non_detections]
 
-        # Prepare data for non-detections
-        non_detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in non_detections]
-        non_detection_limits = [p.limit for p in non_detections]
+        # Prepare data for binned non-detections
+        non_detection_days_ago = [(today - p.obs_date).total_seconds() / (24 * 3600) for p in binned_non_detections]
+        non_detection_limits = [p.limit for p in binned_non_detections]
 
         # Add detections as scatter points with error bars
-        color = instrument2color.get(inst, 'gray')
+        color = name2color.get(f"{telescope}_{filter_band}", 'gray')
+        fig.add_trace(go.Scatter(
+            x=original_detection_days_ago,
+            y=original_detection_magnitudes,
+            error_y=dict(
+                type='data',
+                array=original_detection_errors,
+                visible=True,
+                color=color_to_rgba(color, 0.2)  # Dynamically adjust error bar opacity
+            ),
+            mode='markers',
+            marker=dict(symbol='circle', size=8, color=color, opacity=0.2),
+            name=f"{telescope}_{filter_band} Original Detections",
+            legendgroup=f"{telescope}_{filter_band}",
+            showlegend=False  # Hide from legend to avoid clutter
+        ))
+
+        # Add binned detections as scatter points with error bars
         fig.add_trace(go.Scatter(
             x=detection_days_ago,
             y=detection_magnitudes,
@@ -657,18 +690,28 @@ def generate_photometry_graph(candidate):
             ),
             mode='markers',
             marker=dict(symbol='circle', size=8, color=color),
-            name=f"{inst} Detections",
-            legendrank=1 if inst == 'LAST-CAM' else 2  # Ensure LAST first
+            name=f"{telescope}_{filter_band} Detections",
+            legendrank=1 if telescope == 'LAST' else 2  # Ensure LAST first
         ))
 
-        # Add non-detections as downward arrows
+        # Add original non-detections with reduced opacity
+        fig.add_trace(go.Scatter(
+            x=original_non_detection_days_ago,
+            y=original_non_detection_limits,
+            mode='markers',
+            marker=dict(symbol='triangle-down', size=8, color=color, opacity=0.2),
+            legendgroup=f"{telescope}_{filter_band}",
+            showlegend=False  # Hide from legend to avoid clutter
+        ))
+
+        # Add binned non-detections as downward arrows
         fig.add_trace(go.Scatter(
             x=non_detection_days_ago,
             y=non_detection_limits,
             mode='markers',
             marker=dict(symbol='triangle-down', size=8, color=color),
-            name=f"{inst} Non-Detections",
-            legendrank=1 if inst == 'LAST-CAM' else 2  # Ensure LAST first
+            name=f"{telescope}_{filter_band} Non-Detections",
+            legendrank=1 if telescope == 'LAST' else 2  # Ensure LAST first
         ))
 
     # Customize layout
@@ -694,6 +737,24 @@ def generate_photometry_graph(candidate):
 
     return mark_safe(graph_html)
 
+
+def color_to_rgba(color, alpha=1.0):
+    """
+    Convert a color (hex or named) to an RGBA string with the specified alpha value.
+    :param color: Color string (e.g., '#636efa' or 'blue')
+    :param alpha: Opacity value (0.0 to 1.0)
+    :return: RGBA color string (e.g., 'rgba(99, 110, 250, 0.2)')
+    """
+    try:
+        # Try to convert hex color to RGB
+        rgb = hex_to_rgb(color)
+    except ValueError:
+        # If it's not a hex color, assume it's a named color
+        rgb = unlabel_rgb(color)
+
+    # Format as RGBA
+    return f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha})"
+    
 
 def get_atlas_fp(candidate, days_ago=10):
     """
@@ -726,7 +787,7 @@ def get_atlas_fp(candidate, days_ago=10):
             with requests.Session() as s:
                 resp = s.post(f"{ATLAS_BASEURL}/queue/", headers=headers,
                               data={'ra': {str(candidate.ra)}, 'dec': {str(candidate.dec)},
-                                    'mjd_min': {Time.now().mjd-days_ago}, 'send_email': False})
+                                    'mjd_min': {Time(now()).mjd-days_ago}, 'send_email': False})
 
                 if resp.status_code == 201:  # successfully queued
                     task_url = resp.json()['url']
@@ -806,6 +867,60 @@ def get_atlas_fp(candidate, days_ago=10):
         print(f"Error querying ATLAS API: {e}")
         traceback.print_exc()
         return None
+
+
+def bin_photometry_points(points, max_time_diff=0.1):
+    """
+    Bin data points that are less than max_time_diff days apart.
+    :param points: List of data points (each with obs_date, magnitude, magnitude_error, etc.)
+    :param max_time_diff: Maximum time difference (in days) to bin points together
+    :return: Binned data points
+
+    Note: This function assumes that the input points are sorted by obs_date.
+    """
+    binned_points = []
+    current_bin = []
+
+    for i, point in enumerate(points):
+        if not current_bin:
+            current_bin.append(point)
+        else:
+            time_diff = (point.obs_date - current_bin[-1].obs_date).total_seconds() / (24 * 3600)
+            if time_diff <= max_time_diff:
+                current_bin.append(point)
+            else:
+                # Process the current bin
+                binned_points.append(average_photometry_bin(current_bin))
+                current_bin = [point]
+
+    # Process the last bin
+    if current_bin:
+        binned_points.append(average_photometry_bin(current_bin))
+
+    return binned_points
+
+
+def average_photometry_bin(bin_points):
+    """
+    Compute the average values for a bin of points.
+    :param bin_points: List of points in the bin
+    :return: A single averaged point
+    """
+    avg_obs_date = np.mean([p.obs_date.timestamp() for p in bin_points])
+    avg_obs_date = datetime.fromtimestamp(avg_obs_date)
+    avg_magnitude = np.mean([p.magnitude for p in bin_points if p.magnitude is not None])
+    sum_squared_errors = sum([p.magnitude_error**2 for p in bin_points if p.magnitude_error is not None])
+    avg_magnitude_error = np.sqrt(sum_squared_errors) if sum_squared_errors > 0 else None
+    avg_limit = np.mean([p.limit for p in bin_points if p.limit is not None])
+
+    # Return a new point with averaged values
+    return SimpleNamespace(
+        obs_date=make_aware(avg_obs_date),
+        magnitude=avg_magnitude,
+        magnitude_error=avg_magnitude_error,
+        limit=avg_limit
+    )
+
 
 
 def tns_cone_search(ra, dec, radius=3.0):
