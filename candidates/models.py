@@ -64,7 +64,7 @@ class Candidate(models.Model):
         blank=True,
         default=None  # Default is "neither"
     )
-    real_bogus_user = models.CharField(max_length=100, null=True, blank=True)  # User who classified the candidate
+    real_bogus_user =models.CharField(max_length=100, null=True, blank=True)  # User who classified the candidate
     created_at = models.DateTimeField(auto_now_add=True)
     tns_name = models.CharField(max_length=100, null=True, blank=True)  # TNS name (if reported)
     reported_by_LAST = models.BooleanField(default=False)  # Reported by LAST
