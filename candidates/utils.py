@@ -884,6 +884,11 @@ def send_tns_report(candidate,first_name,last_name):
                 candidate.tns_name = objname
                 candidate.reported_by_LAST = True
                 try:
+                    candidate.real_bogus = True
+                    candidate.real_bogus_user = f"{first_name} {last_name}"
+                except Exception as e:
+                    print(f"Error setting real_bogus: {e}")
+                try:
                     candidate.save()
                 except Exception as e:
                     print(f"Error saving candidate: {e}")
