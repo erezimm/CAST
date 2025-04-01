@@ -1,5 +1,7 @@
 from .forms import FileUploadForm
-from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate, generate_photometry_graph, send_tns_report,update_candidate_cutouts,tns_report_details,get_horizons_data
+from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate,\
+                   generate_photometry_graph, send_tns_report,update_candidate_cutouts,tns_report_details,\
+                   get_horizons_data, get_atlas_fp
 from .models import Candidate,CandidateDataProduct,CandidateAlert
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -61,6 +63,25 @@ def delete_candidate_view(request):
     # Redirect back to the candidate list
     return redirect('candidates:list')
 
+
+def refresh_atlas_view(request, candidate_id):
+    """
+    Query Atlas for photometry for a candidate.
+    Does not add photometry that already exists.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
+    try:
+        daysago = request.POST.get('daysago')
+        print("Days ago:", daysago)
+        # print("Blabla:", request.POST.get('blabla'))
+        get_atlas_fp(candidate, int(daysago))
+        messages.success(request, f"Atlas photometry was updated for {candidate.name}.")
+    except Exception as e:
+        messages.error(request, f"Failed to refresh Atlas for {candidate.name}: {e}")
+
+    # Redirect back to the filtered candidate list
+    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")
 
 @login_required
 @user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())

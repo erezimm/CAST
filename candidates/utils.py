@@ -1,41 +1,44 @@
-from types import SimpleNamespace
-from .models import Candidate,CandidatePhotometry,CandidateDataProduct,CandidateAlert
-from tom_targets.models import Target
-# from tom_targets.utils import cone_search_filter
-from django.shortcuts import get_object_or_404
-from django.db.models import ExpressionWrapper, FloatField
-from django.db.models.functions import ACos, Cos, Radians, Pi, Sin
-from django.utils.dateparse import parse_datetime
-from django.conf import settings
-from django.core.files import File  # Import the File wrapper
-from django.utils.timezone import now, make_aware#,get_current_timezone,make_aware,is_aware
-from django.utils.safestring import mark_safe
-from django.contrib.auth.models import Group
-from guardian.shortcuts import assign_perm
-from django.core.files.base import ContentFile
-# from django.http import HttpResponse
-from tom_dataproducts.models import ReducedDatum
-from math import radians
-import os
-import io
-import re
-import json
-import requests
-from datetime import datetime,timedelta
+# Standard library imports
 import glob
-from io import BytesIO,StringIO
-import plotly.graph_objs as go
-from plotly.colors import hex_to_rgb, unlabel_rgb
-from astropy.time import Time
-from django.core.files.base import ContentFile
-import numpy as np
-import pandas as pd
-from collections import OrderedDict
+import io
+import json
+import os
+import re
+import requests
 import time
 import traceback
-from astropy.coordinates import SkyCoord
+from collections import OrderedDict
+from datetime import datetime, timedelta
+from io import BytesIO, StringIO
+from math import radians
+from types import SimpleNamespace
+
+# Third-party library imports
 import astropy.units as u
+import numpy as np
 import pandas as pd
+import plotly.graph_objs as go
+from astropy.coordinates import SkyCoord
+from astropy.time import Time
+from guardian.shortcuts import assign_perm
+from plotly.colors import hex_to_rgb, unlabel_rgb
+
+# Django imports
+from django.conf import settings
+from django.contrib.auth.models import Group
+from django.core.files import File  # Import the File wrapper
+from django.core.files.base import ContentFile
+from django.db.models import ExpressionWrapper, FloatField
+from django.db.models.functions import ACos, Cos, Pi, Radians, Sin
+from django.shortcuts import get_object_or_404
+from django.utils.dateparse import parse_datetime
+from django.utils.safestring import mark_safe
+from django.utils.timezone import make_aware, now
+
+# Local application imports
+from .models import Candidate, CandidateAlert, CandidateDataProduct, CandidatePhotometry
+from tom_dataproducts.models import ReducedDatum
+from tom_targets.models import Target
 
 
 ATLAS_BASEURL = "https://fallingstar-data.com/forcedphot"
@@ -838,7 +841,7 @@ def get_atlas_fp(candidate, days_ago=10):
         with requests.Session() as s:
             textdata = s.get(result_url, headers=headers).text
 
-        dfresult = pd.read_csv(io.StringIO(textdata.replace("###", "")), delim_whitespace=True)
+        dfresult = pd.read_csv(io.StringIO(textdata.replace("###", "")), sep=r"\s+")
 
         SNT = 5.
 
@@ -856,7 +859,7 @@ def get_atlas_fp(candidate, days_ago=10):
             if not photometry_exists(candidate, obs_date, magnitude, magnitude_error):
                 CandidatePhotometry.objects.create(
                     candidate=candidate,
-                    obs_date=obs_date,
+                    obs_date=make_aware(obs_date),
                     magnitude=magnitude,  # Null if non-detection
                     magnitude_error=magnitude_error,
                     filter_band=obs.F,  # Use a mapping if needed to human-readable filter names
