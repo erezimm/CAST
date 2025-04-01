@@ -350,7 +350,6 @@ def process_json_file(file):
             latest_photometry = CandidatePhotometry.objects.filter(candidate = existing_candidate).order_by('-obs_date').first()
             # start_jd = Time(latest_photometry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').jd
             add_photometry_from_last_report(existing_candidate,last_report)    
-            get_atlas_fp(existing_candidate) # Query ATLAS API for additional photometry data
             wrapped_file = File(file)
             wrapped_file.name = os.path.basename(file.name)
             CandidateDataProduct.objects.create(
@@ -361,6 +360,8 @@ def process_json_file(file):
             )
             #update candidate cutouts
             update_candidate_cutouts(existing_candidate)
+            get_atlas_fp(existing_candidate) # Query ATLAS API for additional photometry data
+
         return None
 
     # Save to the database
@@ -419,7 +420,6 @@ def process_json_file(file):
     if last_report != {}:
         try:
             add_photometry_from_last_report(candidate,last_report)
-            get_atlas_fp(candidate) # Query ATLAS API for additional photometry data
         except Exception as e:
             print(f"Error adding photometry: {e}")
 
@@ -451,6 +451,12 @@ def process_json_file(file):
             data_product_type='sdss',
             name=f"{candidate.name} SDSS cutout",
         )
+
+    # Atlas photometry
+    try:
+        get_atlas_fp(candidate) # Query ATLAS API for additional photometry data
+    except Exception as e:
+        print(f"Error fetching Atlas photometry for candidate {candidate.id}: {e}")
 
     return candidates_added
 
