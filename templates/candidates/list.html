@@ -182,17 +182,6 @@
                         {% else %}
                         No photometry available.
                         {% endif %}
-                        
-                        <!-- Force Photometry Buttuns -->
-                         <div>
-                            <form method="POST" action="" style="display:inline;">
-                                {% csrf_token %}
-                                <input type="hidden" name="real_bogus" value="real">
-                                <button type="submit" class="btn btn-sm text-white" style="background-color: #FFA500; border-color:#FFA500;">
-                                    Refresh Atlas
-                                </button>     
-                            </form>
-                        </div>
                     </td>
                     <td>
                         <!-- Real/Bogus Buttons -->
@@ -284,6 +273,22 @@
                             <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                         </form>
                         {% endif %}
+                        
+                        <!-- Force Photometry Buttuns -->
+                        <form method="POST" action="{% url 'candidates:refresh_atlas' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+                              style="display: inline-flex; align-items: center; vertical-align: middle;"
+                              class="refresh-form">
+                            {% csrf_token %}
+                            <!-- <input type="number" name="blabla" placeholder="blabla" min="0" required > -->
+                            <div style="display: inline-flex; align-items: center; background-color: #2aa198; border: 1px solid #2aa198; border-radius: 4px; overflow: hidden;">
+                                <input type="number" name="daysago" placeholder="Days ago" min="1" required
+                                       class="form-control form-control-sm text-center" style="width: 100px; border: none; border-radius: 0;">
+                                <button type="submit" class="btn btn-sm text-white"
+                                        style="background-color: #2aa198; border: none; border-left: 1px solid white;">
+                                    Refresh Atlas
+                                </button>
+                            </div>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}
@@ -320,4 +325,23 @@
         </nav>
     </div>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const forms = document.querySelectorAll("form.refresh-form");
+    
+        forms.forEach(form => {
+            form.addEventListener("submit", function() {
+                const button = form.querySelector("button[type='submit']");
+                const input = form.querySelector("input[name='daysago']");
+                if (input && input.value === "") return; // guard: don't submit empty
+    
+                // Disable button
+                button.disabled = true;
+    
+                // Show loading state
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading…';
+            });
+        });
+    });
+</script>
 {% endblock %}>

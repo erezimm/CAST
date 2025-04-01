@@ -143,7 +143,7 @@ class Candidate(models.Model):
                 if len(obj) > 0:
                     try:
                         return False, objname
-                    except exception as e:
+                    except Exception as e:
                         return False, None
                 # logger.debug(f'Object was not reported by LAST')
                 return False , None
