@@ -221,6 +221,8 @@ def update_real_bogus_view(request, candidate_id):
             candidate.real_bogus = True
         elif real_bogus == 'bogus':
             candidate.real_bogus = False
+        elif real_bogus == 'null':
+            candidate.real_bogus = None
         else:
             messages.error(request, "Invalid real/bogus value selected.")
             return redirect('candidates:list')

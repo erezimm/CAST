@@ -679,10 +679,10 @@ def generate_photometry_graph(candidate):
                 type='data',
                 array=original_detection_errors,
                 visible=True,
-                color=color_to_rgba(color, 0.2)  # Dynamically adjust error bar opacity
+                color=color_to_rgba(color, 0.5)  # Dynamically adjust error bar opacity
             ),
             mode='markers',
-            marker=dict(symbol='circle', size=8, color=color, opacity=0.2),
+            marker=dict(symbol='circle', size=8, color=color, opacity=0.5),
             name=f"{telescope}_{filter_band} Original Detections",
             legendgroup=f"{telescope}_{filter_band}",
             showlegend=False  # Hide from legend to avoid clutter
