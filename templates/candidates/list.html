@@ -113,9 +113,15 @@
                         </p>
                         <p>{% if item.candidate.tns_name %}
                             <b>IAU name:</b>
-                        <a href="https://www.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
-                            {{ item.candidate.tns_name }}
-                        </a>
+                            {% if tns_test %}
+                            <a href="https://sandbox.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
+                                {{ item.candidate.tns_name }}
+                            </a>
+                            {% else %}
+                            <a href="https://www.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
+                                {{ item.candidate.tns_name }}
+                            </a>
+                            {% endif %}
                         {% endif %}
                         </p>
                         <p><b>Coordinates (RA, DEC):</b> {{ item.candidate.ra |floatformat:-5 }}, {{ item.candidate.dec |floatformat:-5}}</p>
@@ -242,7 +248,7 @@
                         </a>
                         {% if not item.candidate.tns_name%}
                             <!-- Check TNS-->
-                            <a href="https://www.wis-tns.org/search?ra={{ item.candidate.ra }}&decl={{ item.candidate.dec }}&radius=5&coords_unit=arcsec"
+                            <a href="https://sandbox.wis-tns.org/search?ra={{ item.candidate.ra }}&decl={{ item.candidate.dec }}&radius=5&coords_unit=arcsec"
                             class="btn btn-sm btn-secondary text-white"
                             style="background-color: rgb(45, 183, 188); border-color: rgb(45, 183, 188);" 
                             target="_blank">

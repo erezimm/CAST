@@ -21,7 +21,11 @@ def tns_cone_search(ra, dec, radius=3.0):
         dict: The response data from the TNS.
     """
     # API endpoint for the cone searchtns_settings = settings.BROKERS.get('TNS', {})
-    TNS                 = "www.wis-tns.org"
+    test = settings.TNS_TEST
+    if test:
+        TNS                 = "sandbox.wis-tns.org"
+    else:
+        TNS                 = "www.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')
@@ -97,7 +101,11 @@ class Candidate(models.Model):
         :return: TNS response (JSON) or None if not found
         """
         tns_settings = settings.BROKERS.get('TNS', {})
-        TNS                 = "www.wis-tns.org"
+        test = settings.TNS_TEST
+        if test:
+            TNS                 = "sandbox.wis-tns.org"
+        else:
+            TNS                 = "www.wis-tns.org"
         url_tns_api         = "https://" + TNS + "/api"
         TNS_BOT_ID          = tns_settings.get('bot_id')
         TNS_BOT_NAME        = tns_settings.get('bot_name')
