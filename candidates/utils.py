@@ -945,7 +945,11 @@ def tns_cone_search(ra, dec, radius=3.0):
         dict: The response data from the TNS.
     """
     # API endpoint for the cone searchtns_settings = settings.BROKERS.get('TNS', {})
-    TNS                 = "www.wis-tns.org"
+    test = settings.TNS_TEST
+    if test:
+        TNS                 = "sandbox.wis-tns.org"
+    else:
+        TNS                 = "www.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')
@@ -1043,7 +1047,11 @@ def transform_json_tns(input_data):
     }
 
 def send_json_tns_report(report):
-    TNS                 = "www.wis-tns.org"
+    test = settings.TNS_TEST
+    if test:
+        TNS                 = "sandbox.wis-tns.org"
+    else:
+        TNS                 = "www.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')
@@ -1060,7 +1068,11 @@ def send_json_tns_report(report):
 
 
 def send_tns_reply(id_report):
-    TNS                 = "www.wis-tns.org"
+    test = settings.TNS_TEST
+    if test:
+        TNS                 = "sandbox.wis-tns.org"
+    else:
+        TNS                 = "www.wis-tns.org"
     url_tns_api         = "https://" + TNS + "/api"
     tns_settings = settings.BROKERS.get('TNS', {})
     TNS_BOT_ID          = tns_settings.get('bot_id')
@@ -1149,6 +1161,10 @@ def send_tns_report(candidate,first_name,last_name):
     candidate.tns_name = objname
     candidate.reported_by_LAST = True
     candidate.real_bogus = True
+<<<<<<< HEAD
+=======
+    candidate.real_bogus_user = f"{first_name} {last_name}"
+>>>>>>> 671e8219ff6d3dc657714a5c8e4a4dac4dc5e5e8
     try:
         candidate.save()
     except Exception as e:
