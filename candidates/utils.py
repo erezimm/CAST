@@ -1161,10 +1161,7 @@ def send_tns_report(candidate,first_name,last_name):
     candidate.tns_name = objname
     candidate.reported_by_LAST = True
     candidate.real_bogus = True
-<<<<<<< HEAD
-=======
     candidate.real_bogus_user = f"{first_name} {last_name}"
->>>>>>> 671e8219ff6d3dc657714a5c8e4a4dac4dc5e5e8
     try:
         candidate.save()
     except Exception as e:
