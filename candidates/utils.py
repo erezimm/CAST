@@ -1107,51 +1107,52 @@ def send_tns_report(candidate,first_name,last_name):
     """
     if candidate.reported_by_LAST:
         return None
-    else:
-        # dataproduct = CandidateDataProduct.objects.filter(candidate=candidate,data_product_type='json').first()
-        # file = dataproduct.datafile
-        # file_content = file.read().decode('utf-8')  # Decode to string
-        # data = json.loads(file_content)  # Parse the JSON content
-        data = tns_report_details(candidate,first_name,last_name)
-        transformed_json = json.dumps(transform_json_tns(data))
-        report = json.loads(StringIO(transformed_json).read(), object_pairs_hook = OrderedDict)
-        response = send_json_tns_report(report)
-        if response.status_code == 200:
-            json_response = response.json()
-            print(json_response)
-            report_id = json_response['data']['report_id']
-            time.sleep(5)
-            response = send_tns_reply(report_id)
-            print(response.json())
-            if response.status_code == 400:
-                feedback = json.dumps(response.json()['data']['feedback'], indent = 4)
-                CandidateDataProduct.objects.create(
-                candidate=candidate,
-                datafile=ContentFile(feedback),
-                data_product_type='tns',
-                name=f'failed_tns_{report_id}.json'
-                )
-                print("hello")
-            if response.status_code == 200:
-                feedback_data = response.json()['data']['feedback']
-                objname = feedback_data['at_report'][0].get('101', {}).get('objname', 'No objname found')
-                if objname == 'No objname found':
-                    objname = feedback_data['at_report'][0].get('100', {}).get('objname', 'No objname found')
-                feedback = json.dumps(response.json()['data']['feedback'], indent = 4)
-                #Save the feedback
-                CandidateDataProduct.objects.create(
-                candidate=candidate,
-                datafile=ContentFile(feedback),
-                data_product_type='tns',
-                name=f'tns_{report_id}.json'
-                )
-                candidate.tns_name = objname
-                candidate.reported_by_LAST = True
-                try:
-                    candidate.save()
-                except Exception as e:
-                    print(f"Error saving candidate: {e}")
-                print(candidate.tns_name)
+    
+    # dataproduct = CandidateDataProduct.objects.filter(candidate=candidate,data_product_type='json').first()
+    # file = dataproduct.datafile
+    # file_content = file.read().decode('utf-8')  # Decode to string
+    # data = json.loads(file_content)  # Parse the JSON content
+    data = tns_report_details(candidate,first_name,last_name)
+    transformed_json = json.dumps(transform_json_tns(data))
+    report = json.loads(StringIO(transformed_json).read(), object_pairs_hook = OrderedDict)
+    response = send_json_tns_report(report)
+    response.raise_for_status()  # Raise an error for bad status codes
+
+    # response is ok
+    json_response = response.json()
+    print(json_response)
+    report_id = json_response['data']['report_id']
+    time.sleep(5)
+    response = send_tns_reply(report_id)
+    print(response.json())
+    if response.status_code == 400:
+        feedback = json.dumps(response.json()['data']['feedback'], indent = 4)
+        CandidateDataProduct.objects.create(
+            candidate=candidate,
+            datafile=ContentFile(feedback),
+            data_product_type='tns',
+            name=f'failed_tns_{report_id}.json'
+        )
+    response.raise_for_status()
+    feedback_data = response.json()['data']['feedback']
+    objname = feedback_data['at_report'][0].get('101', {}).get('objname', 'No objname found')
+    if objname == 'No objname found':
+        objname = feedback_data['at_report'][0].get('100', {}).get('objname', 'No objname found')
+    feedback = json.dumps(response.json()['data']['feedback'], indent = 4)
+    #Save the feedback
+    CandidateDataProduct.objects.create(
+        candidate=candidate,
+        datafile=ContentFile(feedback),
+        data_product_type='tns',
+        name=f'tns_{report_id}.json'
+    )
+    candidate.tns_name = objname
+    candidate.reported_by_LAST = True
+    try:
+        candidate.save()
+    except Exception as e:
+        print(f"Error saving candidate: {e}")
+    print(candidate.tns_name)
 
 def get_horizons_data(candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)
