@@ -81,7 +81,7 @@ def refresh_atlas_view(request, candidate_id):
         messages.error(request, f"Failed to refresh Atlas for {candidate.name}: {e}")
 
     # Redirect back to the filtered candidate list
-    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")
+    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")  # TODO: add date to filter
 
 @login_required
 @user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())

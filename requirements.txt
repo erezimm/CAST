@@ -55,6 +55,7 @@ jeepney==0.8.0
 Jinja2==3.1.4
 jmespath==1.0.1
 keyring==25.5.0
+lasair==0.1.1
 Markdown==3.7
 MarkupSafe==3.0.2
 matlabengine @ file:///usr/local/MATLAB/R2024b/extern/engines/python
