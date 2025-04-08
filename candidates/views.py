@@ -71,7 +71,6 @@ def refresh_atlas_view(request, candidate_id):
     Does not add photometry that already exists.
     """
     candidate = get_object_or_404(Candidate, id=candidate_id)
-    filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
     try:
         daysago = request.POST.get('daysago')
         get_atlas_fp(candidate, int(daysago))
@@ -79,8 +78,28 @@ def refresh_atlas_view(request, candidate_id):
     except Exception as e:
         messages.error(request, f"Failed to refresh Atlas for {candidate.name}: {e}")
 
-    # Redirect back to the filtered candidate list
-    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")  # TODO: add date to filter
+    # Get the filter parameter from the request
+    filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided
+    # Redirect to the candidate list with the current filter, start date, end date, and anchor
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
+    
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
+
+    # Add anchor for the specific candidate
+    redirect_url += f"#candidate-{candidate.id}"
+
+    return redirect(redirect_url)
 
 
 def refresh_ztf_view(request, candidate_id):
@@ -89,7 +108,6 @@ def refresh_ztf_view(request, candidate_id):
     Does not add photometry that already exists.
     """
     candidate = get_object_or_404(Candidate, id=candidate_id)
-    filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
     try:
         daysago = request.POST.get('daysago')
         get_ztf_fp(candidate, int(daysago))
@@ -97,8 +115,28 @@ def refresh_ztf_view(request, candidate_id):
     except Exception as e:
         messages.error(request, f"Failed to refresh ZTF for {candidate.name}: {e}")
 
-    # Redirect back to the filtered candidate list
-    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")  # TODO: add date to filter
+    # Get the filter parameter from the request
+    filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided
+    # Redirect to the candidate list with the current filter, start date, end date, and anchor
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
+    
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
+
+    # Add anchor for the specific candidate
+    redirect_url += f"#candidate-{candidate.id}"
+
+    return redirect(redirect_url)
 
 
 @login_required
