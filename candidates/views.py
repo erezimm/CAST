@@ -16,7 +16,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from collections import defaultdict
 from astropy.coordinates import SkyCoord
 import astropy.units as u
-
+from django.conf import settings
 
 def upload_file_view(request):
     """
@@ -169,7 +169,7 @@ def candidate_list_view(request):
                     .first()
                 for cutout_type in cutout_types
             ],
-            'last_alert': CandidateAlert.objects.filter(candidate=candidate).order_by('-created_at').first()
+            'last_alert': CandidateAlert.objects.filter(candidate=candidate).order_by('-created_at').first(),
         }
         for candidate in candidates
     ]
@@ -192,7 +192,8 @@ def candidate_list_view(request):
         'candidate_status': candidate_status,
         'candidate_count': candidates.count(),
         'page_obj': page_obj,
-        'items_per_page': items_per_page, 
+        'items_per_page': items_per_page,
+        'tns_test': settings.TNS_TEST,
     })
 
 def add_target_view(request):
