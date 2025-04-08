@@ -1,9 +1,9 @@
 from .forms import FileUploadForm
 from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate,\
-                   generate_photometry_graph, send_tns_report,update_candidate_cutouts,tns_report_details,\
-                   get_horizons_data, get_atlas_fp
+                   send_tns_report,update_candidate_cutouts,tns_report_details,\
+                   get_horizons_data
 from .models import Candidate,CandidateDataProduct,CandidateAlert
-from .force_photometry import get_ztf_fp
+from .photometry_utils import generate_photometry_graph, get_atlas_fp, get_ztf_fp
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.urls import reverse
@@ -74,8 +74,6 @@ def refresh_atlas_view(request, candidate_id):
     filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
     try:
         daysago = request.POST.get('daysago')
-        print("Days ago:", daysago)
-        # print("Blabla:", request.POST.get('blabla'))
         get_atlas_fp(candidate, int(daysago))
         messages.success(request, f"Atlas photometry was updated for {candidate.name}.")
     except Exception as e:
@@ -94,8 +92,6 @@ def refresh_ztf_view(request, candidate_id):
     filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
     try:
         daysago = request.POST.get('daysago')
-        print("Days ago:", daysago)
-        # print("Blabla:", request.POST.get('blabla'))
         get_ztf_fp(candidate, int(daysago))
         messages.success(request, f"ZTF photometry was updated for {candidate.name}.")
     except Exception as e:
