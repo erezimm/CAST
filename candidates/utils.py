@@ -638,7 +638,8 @@ def generate_photometry_graph(candidate):
     fig = go.Figure()
 
     name2color = {'LAST_clear': '#636efa',
-                  'ATLAS_o': '#FFA500', 'ATLAS_c': '#2aa198'}
+                  'ATLAS_o': '#FFA500', 'ATLAS_c': '#2aa198',
+                  'ZTF_g': '#008000', 'ZTF_r': '#FF0000',}
     
     for telescope, filter_band in telescope_band_pairs:
         
@@ -679,7 +680,7 @@ def generate_photometry_graph(candidate):
                 type='data',
                 array=original_detection_errors,
                 visible=True,
-                color=color_to_rgba(color, 0.5)  # Dynamically adjust error bar opacity
+                color=rgb_to_rgba(color, 0.5)  # Dynamically adjust error bar opacity
             ),
             mode='markers',
             marker=dict(symbol='circle', size=8, color=color, opacity=0.5),
@@ -747,21 +748,14 @@ def generate_photometry_graph(candidate):
     return mark_safe(graph_html)
 
 
-def color_to_rgba(color, alpha=1.0):
+def rgb_to_rgba(color, alpha=1.0):
     """
-    Convert a color (hex or named) to an RGBA string with the specified alpha value.
-    :param color: Color string (e.g., '#636efa' or 'blue')
+    Convert a color (hex) to an RGBA string with the specified alpha value.
+    :param color: Color string (e.g., '#636efa')
     :param alpha: Opacity value (0.0 to 1.0)
     :return: RGBA color string (e.g., 'rgba(99, 110, 250, 0.2)')
     """
-    try:
-        # Try to convert hex color to RGB
-        rgb = hex_to_rgb(color)
-    except ValueError:
-        # If it's not a hex color, assume it's a named color
-        rgb = unlabel_rgb(color)
-
-    # Format as RGBA
+    rgb = hex_to_rgb(color)
     return f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha})"
     
 
@@ -864,7 +858,6 @@ def get_atlas_fp(candidate, days_ago=10):
                     magnitude_error=magnitude_error,
                     filter_band=obs.F,  # Use a mapping if needed to human-readable filter names
                     telescope="ATLAS",
-                    instrument=f"ATLAS_{obs.F}",
                     limit=limit
                 )
  

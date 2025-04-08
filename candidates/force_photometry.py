@@ -17,37 +17,34 @@ def get_ztf_fp(candidate, days_ago=10):
     """
 
     lasair_settings = settings.BROKERS.get('LASAIR', {})
-    api_token = lasair_settings.get('API_TOKEN')
+    api_token = lasair_settings.get('api_token')
     if not api_token:
         print("LASAIR API credentials not set.")
-        return None
+        raise ValueError("LASAIR API credentials not set.")
     L = lasair_client(lasair_settings['api_token'], endpoint=LASAIR_ENDPOINT)
 
     result = L.cone(ra=candidate.ra, dec=candidate.dec,
                     radius=LASAIR_CONE_RADIUS, requestType='nearest')
     if 'object' in result:
-        print(f"Found {result['object']} at separation {result['separation']:.2f} with radius {radius_arcsec}")
+        print(f"Found {result['object']} at separation {result['separation']:.2f} with radius {LASAIR_CONE_RADIUS}")
     else:
-        print('No object found at radius %f' % radius_arcsec)
+        print('No object found at radius %f' % LASAIR_CONE_RADIUS)
         return None
     
     object_id = result['object']
     lcs = L.lightcurves([object_id])
     dfresult = pd.DataFrame(lcs[0]['candidates']) 
     dfresult = dfresult[dfresult['jd'] > Time.now().jd - days_ago]
-
-    SNT = 5.
-
-    # TODO: from here down
+    
     for obs in dfresult.iloc:
-        obs_date = Time(obs.MJD,format='mjd').to_datetime()
-        if obs.uJy/obs.duJy >= SNT:
-            magnitude = obs.m  # Detection
-            magnitude_error = obs.dm
+        obs_date = Time(obs.jd,format='jd').to_datetime()
+        if obs.candid:
+            magnitude = obs.magpsf  # Detection
+            magnitude_error = obs.sigmapsf
             limit = None
         else:
             magnitude = None  # Non detection
-            limit = obs.mag5sig
+            limit = obs.diffmaglim
             magnitude_error = None
         
         if not photometry_exists(candidate, obs_date, magnitude, magnitude_error):
@@ -56,41 +53,10 @@ def get_ztf_fp(candidate, days_ago=10):
                 obs_date=make_aware(obs_date),
                 magnitude=magnitude,  # Null if non-detection
                 magnitude_error=magnitude_error,
-                filter_band=obs.F,  # Use a mapping if needed to human-readable filter names
-                telescope="ATLAS",
-                instrument=f"ATLAS_{obs.F}",
+                filter_band='g' if obs.fid ==1 else 'r',  # fid=1 green, fid=2 red
+                telescope="ZTF",
                 limit=limit
             )
-
-
-    _red_det_mask = (df.fid==2) & ~df.candid.isna()
-    _red_nondet_mask = (df.fid==2) & df.candid.isna()
-    _green_det_mask = (df.fid==1) & ~df.candid.isna()
-    _green_nondet_mask = (df.fid==1) & df.candid.isna()
-
-    # Plot the detections
-    plt.errorbar(df['phase'].values[_red_det_mask], 
-                df['magpsf'].values[_red_det_mask],
-                yerr = df['sigmapsf'].values[_red_det_mask],
-                color = 'red', 
-                marker='*',
-                ls = '--'
-                )
-
-    plt.errorbar(df['phase'].values[_green_det_mask], 
-                df['magpsf'].values[_green_det_mask],
-                yerr = df['sigmapsf'].values[_green_det_mask],
-                color = 'green', 
-                marker='*',
-                ls = '--'
-                )
-
-    # Plot the non detections
-    plt.scatter(df['phase'].values[_red_nondet_mask], 
-                df['diffmaglim'].values[_red_nondet_mask],
-                color = 'red', 
-                marker='v'
-                )
 
 def photometry_exists(candidate, obs_date, magnitude, magnitude_error, filter_band='clear'):
     """
