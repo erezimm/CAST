@@ -3,6 +3,7 @@ from .utils import process_json_file, add_candidate_as_target, check_target_exis
                    generate_photometry_graph, send_tns_report,update_candidate_cutouts,tns_report_details,\
                    get_horizons_data, get_atlas_fp
 from .models import Candidate,CandidateDataProduct,CandidateAlert
+from .force_photometry import get_ztf_fp
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.urls import reverse
@@ -82,6 +83,27 @@ def refresh_atlas_view(request, candidate_id):
 
     # Redirect back to the filtered candidate list
     return redirect(f"{reverse('candidates:list')}?filter={filter_value}")  # TODO: add date to filter
+
+
+def refresh_ztf_view(request, candidate_id):
+    """
+    Query ZTF for photometry for a candidate.
+    Does not add photometry that already exists.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
+    try:
+        daysago = request.POST.get('daysago')
+        print("Days ago:", daysago)
+        # print("Blabla:", request.POST.get('blabla'))
+        get_ztf_fp(candidate, int(daysago))
+        messages.success(request, f"ZTF photometry was updated for {candidate.name}.")
+    except Exception as e:
+        messages.error(request, f"Failed to refresh ZTF for {candidate.name}: {e}")
+
+    # Redirect back to the filtered candidate list
+    return redirect(f"{reverse('candidates:list')}?filter={filter_value}")  # TODO: add date to filter
+
 
 @login_required
 @user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())

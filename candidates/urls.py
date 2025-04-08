@@ -17,4 +17,5 @@ urlpatterns = [
     path('update_cutouts/<int:candidate_id>/', views.update_cutouts_view, name='update_candidate_cutouts'),
     path('horizon/<int:candidate_id>/', views.horizons_view, name='horizon'),
     path('refresh_atlas/<int:candidate_id>/', views.refresh_atlas_view, name='refresh_atlas'),
+    path('refresh_ztf/<int:candidate_id>/', views.refresh_ztf_view, name='refresh_ztf'),
 ]
