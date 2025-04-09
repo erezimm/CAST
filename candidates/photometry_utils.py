@@ -185,11 +185,11 @@ def get_ztf_fp(candidate, days_ago=10):
     lcs = L.lightcurves([object_id])
     dfresult = pd.DataFrame(lcs[0]['candidates']) 
     dfresult = dfresult[dfresult['jd'] > Time.now().jd - days_ago]
-    
+
     for obs in dfresult.iloc:
         obs_date = Time(obs.jd,format='jd').to_datetime()
         filter_band = 'g' if obs.fid ==1 else 'r'  # fid=1 green, fid=2 red
-        if obs.candid:
+        if not np.isnan(obs.candid):
             magnitude = obs.magpsf  # Detection
             magnitude_error = obs.sigmapsf
             limit = None
