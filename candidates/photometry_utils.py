@@ -139,7 +139,8 @@ def get_atlas_fp(candidate, days_ago=10):
                 limit = obs.mag5sig
                 magnitude_error = None
             
-            if not photometry_exists(candidate, obs_date, magnitude, magnitude_error):
+            if not photometry_exists(candidate, obs_date, magnitude,
+                                     magnitude_error, filter_band=obs.F):
                 CandidatePhotometry.objects.create(
                     candidate=candidate,
                     obs_date=make_aware(obs_date),
@@ -187,6 +188,7 @@ def get_ztf_fp(candidate, days_ago=10):
     
     for obs in dfresult.iloc:
         obs_date = Time(obs.jd,format='jd').to_datetime()
+        filter_band = 'g' if obs.fid ==1 else 'r'  # fid=1 green, fid=2 red
         if obs.candid:
             magnitude = obs.magpsf  # Detection
             magnitude_error = obs.sigmapsf
@@ -196,13 +198,14 @@ def get_ztf_fp(candidate, days_ago=10):
             limit = obs.diffmaglim
             magnitude_error = None
         
-        if not photometry_exists(candidate, obs_date, magnitude, magnitude_error):
+        if not photometry_exists(candidate, obs_date, magnitude,
+                                 magnitude_error, filter_band=filter_band):
             CandidatePhotometry.objects.create(
                 candidate=candidate,
                 obs_date=make_aware(obs_date),
                 magnitude=magnitude,  # Null if non-detection
                 magnitude_error=magnitude_error,
-                filter_band='g' if obs.fid ==1 else 'r',  # fid=1 green, fid=2 red
+                filter_band=filter_band,
                 telescope="ZTF",
                 limit=limit
             )
@@ -238,6 +241,8 @@ def generate_photometry_graph(candidate):
                   'ATLAS_o': '#FFA500', 'ATLAS_c': '#2aa198',
                   'ZTF_g': '#008000', 'ZTF_r': '#FF0000',}
     
+    tel2rank = {'LAST': 1, 'ZTF': 2, 'ATLAS': 3}
+    
     for telescope, filter_band in telescope_band_pairs:
         
         filtered_photometry = photometry.filter(telescope=telescope, filter_band=filter_band)
@@ -269,7 +274,7 @@ def generate_photometry_graph(candidate):
         non_detection_limits = [p.limit for p in binned_non_detections]
 
         # Add detections as scatter points with error bars
-        color = name2color.get(f"{telescope}_{filter_band}", 'gray')
+        color = name2color.get(f"{telescope}_{filter_band}", '#77807f') # some shade of grey
         fig.add_trace(go.Scatter(
             x=original_detection_days_ago,
             y=original_detection_magnitudes,
@@ -277,12 +282,12 @@ def generate_photometry_graph(candidate):
                 type='data',
                 array=original_detection_errors,
                 visible=True,
-                color=rgb_to_rgba(color, 0.5)  # make binned detections more transparent
+                color=rgb_to_rgba(color, 0.3)  # make binned detections transparent
             ),
             mode='markers',
-            marker=dict(symbol='circle', size=8, color=color, opacity=0.5),
+            marker=dict(symbol='circle', size=8, color=color, opacity=0.3),
             name=f"{telescope}_{filter_band} Original Detections",
-            legendgroup=f"{telescope}_{filter_band}",
+            legendgroup=f"{telescope}_{filter_band}_detections",
             showlegend=False  # Hide from legend to avoid clutter
         ))
 
@@ -298,7 +303,8 @@ def generate_photometry_graph(candidate):
             mode='markers',
             marker=dict(symbol='circle', size=8, color=color),
             name=f"{telescope}_{filter_band} Detections",
-            legendrank=1 if telescope == 'LAST' else 2  # Ensure LAST first
+            legendgroup=f"{telescope}_{filter_band}_detections",
+            legendrank=tel2rank[telescope]
         ))
 
         # Add original non-detections with reduced opacity
@@ -307,8 +313,8 @@ def generate_photometry_graph(candidate):
             y=original_non_detection_limits,
             mode='markers',
             marker=dict(symbol='triangle-down', size=8, color=color, opacity=0.2),
-            legendgroup=f"{telescope}_{filter_band}",
-            showlegend=False  # Hide from legend to avoid clutter
+            legendgroup=f"{telescope}_{filter_band}_non_detections",
+            showlegend=False
         ))
 
         # Add binned non-detections as downward arrows
@@ -318,7 +324,8 @@ def generate_photometry_graph(candidate):
             mode='markers',
             marker=dict(symbol='triangle-down', size=8, color=color),
             name=f"{telescope}_{filter_band} Non-Detections",
-            legendrank=1 if telescope == 'LAST' else 2  # Ensure LAST first
+            legendgroup=f"{telescope}_{filter_band}_non_detections",
+            legendrank=tel2rank[telescope]
         ))
 
     # Customize layout
