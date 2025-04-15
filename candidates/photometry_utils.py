@@ -23,6 +23,10 @@ from django.utils.timezone import make_aware, now
 # Local imports
 from .models import CandidatePhotometry
 
+#logging
+import logging
+logger = logging.getLogger(__name__)
+
 
 ATLAS_BASEURL = "https://fallingstar-data.com/forcedphot"
 LASAIR_ENDPOINT = "https://lasair-ztf.lsst.ac.uk/api"
@@ -60,7 +64,7 @@ def get_atlas_fp(candidate, days_ago=10):
     username = atlas_settings.get('user_name')
     password = atlas_settings.get('password')
     if not username or not password:
-        print("ATLAS API credentials not set.")
+        logger.error("ATLAS API credentials not set.")
         return None
 
     try:
@@ -71,8 +75,8 @@ def get_atlas_fp(candidate, days_ago=10):
             token = resp.json()['token']
             headers = {'Authorization': f'Token {token}', 'Accept': 'application/json'}
         else:
-            print(f'ERROR {resp.status_code}')
-            print(resp.json())
+            logger.error(f'ERROR {resp.status_code}')
+            logger.error(resp.json())
             
         task_url = None
         while not task_url:
@@ -83,10 +87,11 @@ def get_atlas_fp(candidate, days_ago=10):
 
                 if resp.status_code == 201:  # successfully queued
                     task_url = resp.json()['url']
-                    print(f'The task URL is {task_url}')
+                    logger.info(f'Getting ATLAS photometry for {candidate.name}')
+                    logger.debug(f'The task URL is {task_url}')
                 elif resp.status_code == 429:  # throttled
                     message = resp.json()["detail"]
-                    print(f'{resp.status_code} {message}')
+                    logger.debug(f'{resp.status_code} {message}')
                     t_sec = re.findall(r'available in (\d+) seconds', message)
                     t_min = re.findall(r'available in (\d+) minutes', message)
                     if t_sec:
@@ -95,11 +100,11 @@ def get_atlas_fp(candidate, days_ago=10):
                         waittime = int(t_min[0]) * 60
                     else:
                         waittime = 10
-                    print(f'Waiting {waittime} seconds')
+                    logger.debug(f'Waiting {waittime} seconds')
                     time.sleep(waittime)
                 else:
-                    print(f'ERROR {resp.status_code}')
-                    print(resp.json())
+                    logger.error(f'ERROR {resp.status_code}')
+                    logger.error(resp.json())
 
         result_url = None
         while not result_url:
@@ -109,16 +114,16 @@ def get_atlas_fp(candidate, days_ago=10):
                 if resp.status_code == 200:  # HTTP OK
                     if resp.json()['finishtimestamp']:
                         result_url = resp.json()['result_url']
-                        print(f"Task is complete with results available at {result_url}")
+                        logger.info(f"Task is complete with results available at {result_url}")
                         break
                     elif resp.json()['starttimestamp']:
-                        print(f"Task is running (started at {resp.json()['starttimestamp']})")
+                        logger.debug(f"Task is running (started at {resp.json()['starttimestamp']})")
                     else:
-                        print("Waiting for job to start. Checking again in 10 seconds...")
+                        logger.debug("Waiting for job to start. Checking again in 10 seconds...")
                     time.sleep(10)
                 else:
-                    print(f'ERROR {resp.status_code}')
-                    print(resp.json())
+                    logger.error(f'ERROR {resp.status_code}')
+                    logger.error(resp.json())
                     # sys.exit()
 
         with requests.Session() as s:
@@ -150,35 +155,34 @@ def get_atlas_fp(candidate, days_ago=10):
                     telescope="ATLAS",
                     limit=limit
                 )
- 
     except requests.RequestException as e:
-        print(f"Error querying ATLAS API: {e}")
+        logger.error(f"Error querying ATLAS API: {e}")
         return None
     
     except Exception as e:
-        print(f"Error querying ATLAS API: {e}")
+        logger.error(f"Error querying ATLAS API: {e}")
         traceback.print_exc()
         return None
-
+    logger.info("ATLAS photometry data retrieval complete.")
 
 def get_ztf_fp(candidate, days_ago=10):
     """
     Get the ZTF forced photometry for a candidate.
     """
-
+    logger.info(f"Getting ZTF photometry for {candidate.name}")
     lasair_settings = settings.BROKERS.get('LASAIR', {})
     api_token = lasair_settings.get('api_token')
     if not api_token:
-        print("LASAIR API credentials not set.")
+        logger.error("LASAIR API credentials not set.")
         raise ValueError("LASAIR API credentials not set.")
     L = lasair_client(lasair_settings['api_token'], endpoint=LASAIR_ENDPOINT)
 
     result = L.cone(ra=candidate.ra, dec=candidate.dec,
                     radius=LASAIR_CONE_RADIUS, requestType='nearest')
     if 'object' in result:
-        print(f"Found {result['object']} at separation {result['separation']:.2f} with radius {LASAIR_CONE_RADIUS}")
+        logger.info(f"Found {result['object']} at separation {result['separation']:.2f} with radius {LASAIR_CONE_RADIUS}")
     else:
-        print('No object found at radius %f' % LASAIR_CONE_RADIUS)
+        logger.info('No object found at radius %f' % LASAIR_CONE_RADIUS)
         return None
     
     object_id = result['object']
