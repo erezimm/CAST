@@ -72,6 +72,7 @@ class Candidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     tns_name = models.CharField(max_length=100, null=True, blank=True)  # TNS name (if reported)
     reported_by_LAST = models.BooleanField(default=False)  # Reported by LAST
+    host_galaxy = models.CharField(max_length=100, null=True, blank=True)  # Host galaxy name (if associated)
     
     def save(self, *args, **kwargs):
         """

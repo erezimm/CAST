@@ -23,7 +23,7 @@ from django.utils.timezone import make_aware, now
 # Local imports
 from .models import CandidatePhotometry
 
-#logging
+# Logging
 import logging
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ def get_ztf_fp(candidate, days_ago=10):
     for obs in dfresult.iloc:
         obs_date = Time(obs.jd,format='jd').to_datetime()
         filter_band = 'g' if obs.fid ==1 else 'r'  # fid=1 green, fid=2 red
-        if not np.isnan(obs.candid):
+        if not pd.isna(obs.candid):
             magnitude = obs.magpsf  # Detection
             magnitude_error = obs.sigmapsf
             limit = None

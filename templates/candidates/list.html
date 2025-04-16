@@ -124,6 +124,11 @@
                             {% endif %}
                         {% endif %}
                         </p>
+                        <p>{% if item.candidate.host_galaxy %}
+                            <b>Host galaxy:</b>
+                            {{ item.candidate.host_galaxy }}
+                        {% endif %}
+                        </p>
                         <p><b>Coordinates (RA, DEC):</b> {{ item.candidate.ra |floatformat:-5 }}, {{ item.candidate.dec |floatformat:-5}}</p>
                         <p><b>Score:</b> {{ item.last_alert.score |floatformat:-2 }}</p>
                         <p><b>mount, camera:</b> {{ item.last_alert.mount }}, {{ item.last_alert.camera }}</p>

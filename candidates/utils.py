@@ -35,6 +35,7 @@ from .models import Candidate, CandidateAlert, CandidateDataProduct, CandidatePh
 from tom_dataproducts.models import ReducedDatum
 from tom_targets.models import Target
 from .photometry_utils import get_atlas_fp, get_ztf_fp, photometry_exists
+from .gal_association import associate_galaxy
 
 
 def cone_search_filter(queryset, ra, dec, radius):
@@ -347,6 +348,12 @@ def process_json_file(file):
             get_atlas_fp(existing_candidate)
             get_ztf_fp(existing_candidate)
 
+        if not candidate.host_galaxy:
+            gal = associate_galaxy(candidate.ra, candidate.dec)
+            if gal:
+                candidate.host_galaxy = gal
+                candidate.save()
+
         return None
 
     # Save to the database
@@ -447,8 +454,18 @@ def process_json_file(file):
         get_ztf_fp(candidate)
     except Exception as e:
         print(f"Error fetching ZTF photometry for candidate {candidate.id}: {e}")
-    return candidates_added
+    
+    # Associate with a host galaxy
+    try:
+        gal = associate_galaxy(candidate.ra, candidate.dec)
+        if gal:
+            candidate.host_galaxy = gal
+            candidate.save()
+    except Exception as e:
+        print(f"Error trying to associate galax for candidate {candidate.id}: {e}")
 
+    return candidates_added
+    
 
 def process_multiple_json_files(directory_path):
     """
