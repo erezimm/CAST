@@ -39,23 +39,6 @@ def get_glade():
     return glade
 
 
-def get_glade_coo(glade, ra, dec):
-    """
-    Get the SkyCoord object of the GLADE catalog within a 1 deg^2 of the given RA and Dec.
-    Used for quicker initialization of the SkyCoord object.
-
-    Returns:
-        glade_coo: SkyCoord object containing the coordinates of the GLADE catalog within the specified area.
-    """
-    logger.info("Loading GLADE catalog coordinates...")
-    mini_glade = glade[np.logical_and(
-        np.logical_and(glade['RA'] > ra-0.5, glade['RA'] < ra+0.5),
-        np.logical_and(glade['Dec'] > dec-0.5, glade['Dec'] < dec+0.5)
-        )]
-    glade_coo = SkyCoord(mini_glade['RA'], mini_glade['Dec'],frame='icrs',unit='deg')
-    return glade_coo
-
-
 def associate_galaxy(ra, dec, radius=30.0):
     """
     Find the galaxy in the catalog that is most likely associated with the given RA, Dec.
@@ -69,18 +52,24 @@ def associate_galaxy(ra, dec, radius=30.0):
         tuple (galaxy name, d_L in Mpc). (None, None) if no galaxy is found within the radius.
     """
     glade = get_glade()
-    glade_coo = get_glade_coo(glade, ra, dec)
+    
+    # Create a 1 deg^2 area around the target coordinates, for faster SkyCoord match
+    mini_glade = glade[np.logical_and(
+        np.logical_and(glade['RA'] > ra-0.5, glade['RA'] < ra+0.5),
+        np.logical_and(glade['Dec'] > dec-0.5, glade['Dec'] < dec+0.5)
+        )]
+    glade_coo = SkyCoord(mini_glade['RA'], mini_glade['Dec'],frame='icrs',unit='deg')
 
     target_coord = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame='icrs')
     idx, sep2d, _ = target_coord.match_to_catalog_sky(glade_coo)
 
     if sep2d.arcsecond <= radius:
-        gal = glade.iloc[idx]
+        gal = mini_glade.iloc[idx]
         if not pd.isna(gal.wiseX):
-            logger.info(f"Found galaxy: {gal.wiseX} with separation {sep2d.arcsecond[0]:.2f} arcseconds.")
+            logger.info(f"Found galaxy: {gal.wiseX} with separation {sep2d.arcsecond[0]:.2f} arcseconds and distance {gal.d_L:.2f} Mpc.")
             return f"{gal.wiseX} (wiseX)", gal.d_L
         else:
-            logger.info(f"Found galaxy: {gal['SDSS-DR16Q']} with separation {sep2d.arcsecond[0]:.2f} arcseconds.")
+            logger.info(f"Found galaxy: {gal['SDSS-DR16Q']} with separation {sep2d.arcsecond[0]:.2f} arcseconds and distance {gal.d_L:.2f} Mpc.")
             return f"{gal['SDSS-DR16Q']} (SDSS-DR16Q)", gal.d_L
     else:
         logger.error(f"No galaxy found within {radius} arcseconds for candidate at RA: {ra}, Dec: {dec}.")
