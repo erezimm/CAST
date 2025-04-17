@@ -77,10 +77,10 @@ def associate_galaxy(ra, dec, radius=30.0):
     if sep2d.arcsecond <= radius:
         gal = glade.iloc[idx]
         if not pd.isna(gal.wiseX):
-            logger.info(f"Found galaxy: {gal.wiseX} with separation {sep2d.arcsecond:.2f} arcseconds.")
+            logger.info(f"Found galaxy: {gal.wiseX} with separation {sep2d.arcsecond[0]:.2f} arcseconds.")
             return f"{gal.wiseX} (wiseX)", gal.d_L
         else:
-            logger.info(f"Found galaxy: {gal['SDSS-DR16Q']} with separation {sep2d.arcsecond:.2f} arcseconds.")
+            logger.info(f"Found galaxy: {gal['SDSS-DR16Q']} with separation {sep2d.arcsecond[0]:.2f} arcseconds.")
             return f"{gal['SDSS-DR16Q']} (SDSS-DR16Q)", gal.d_L
     else:
         logger.error(f"No galaxy found within {radius} arcseconds for candidate at RA: {ra}, Dec: {dec}.")

@@ -464,7 +464,7 @@ def process_json_file(file):
             candidate.dist_Mpc = dist_Mpc  # assume always exists if found galaxy
             candidate.save()
     except Exception as e:
-        print(f"Error trying to associate galax for candidate {candidate.id}: {e}")
+        print(f"Error trying to associate galaxy for candidate {candidate.id}: {e}")
 
     return candidates_added
     
