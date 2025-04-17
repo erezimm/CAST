@@ -246,6 +246,10 @@ def generate_photometry_graph(candidate):
                   'ZTF_g': '#008000', 'ZTF_r': '#FF0000',}
     
     tel2rank = {'LAST': 1, 'ZTF': 2, 'ATLAS': 3}
+
+    # distance_modulus = None
+    if candidate.dist_Mpc:
+        distance_modulus = 5 * (np.log10(candidate.dist_Mpc * 1e6) - 1)
     
     for telescope, filter_band in telescope_band_pairs:
         
@@ -308,8 +312,20 @@ def generate_photometry_graph(candidate):
             marker=dict(symbol='circle', size=8, color=color),
             name=f"{telescope}_{filter_band} Detections",
             legendgroup=f"{telescope}_{filter_band}_detections",
-            legendrank=tel2rank[telescope]
+            legendrank=tel2rank[telescope],
+            yaxis="y"
         ))
+
+        # Add invisible points with abs magnitude values
+        if candidate.dist_Mpc:
+            absolute_magnitudes = [m - distance_modulus for m in detection_magnitudes]
+            fig.add_trace(go.Scatter(
+                x=[None],  # don't actually show new points
+                y=absolute_magnitudes,  # only add abs mag to y2 axis
+                showlegend=False,
+                yaxis="y2"
+            ))
+      
 
         # Add original non-detections with reduced opacity
         fig.add_trace(go.Scatter(
@@ -335,15 +351,23 @@ def generate_photometry_graph(candidate):
     # Customize layout
     fig.update_layout(
         xaxis_title="Days Ago",
-        yaxis_title="Magnitude",
-        yaxis=dict(autorange="reversed"),  # Magnitude is brighter for lower values
+        yaxis_title="Apparent Magnitude",
+        yaxis=dict(autorange="reversed",  # Magnitude is brighter for lower values
+                   title="Apparenet Magnitude"
+        ),
+        yaxis2=dict(  # Does not appear if no absolute magnitudes are plotted, i.e if not candidate.dist_Mpc
+            title="Absolute Magnitude",
+            overlaying="y",  # Overlay on the same plot
+            side="right",  # Place on the right side
+            autorange="reversed",  # Absolute magnitude is also brighter for lower values
+        ),
         xaxis=dict(
             title="Days Ago",
             autorange="reversed",  # Reverse the x-axis
         ),
         legend=dict(
             orientation="v",  # Vertical legend
-            x=1,  # Position the legend at the right
+            x=1.2,  # Position the legend at the right
             y=0.5,  # Center the legend
         ),
         margin=dict(l=50, r=0, t=10, b=100),  # Tight margins
