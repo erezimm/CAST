@@ -10,3 +10,6 @@ tmp/
 tom_targets/
 tests.ipynb
 manage.py
+CAST.log
+tom.log
+candidates/migrations/*
