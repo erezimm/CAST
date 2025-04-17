@@ -33,7 +33,7 @@ def get_glade():
     """
     global glade
     if glade is None:
-        print("Loading GLADE catalog...")
+        logger.info("Loading GLADE catalog...")
         glade = pd.read_csv(glade_cat_path, dtype=dtype_mapping)
     return glade
 
@@ -44,7 +44,7 @@ def get_glade_coo():
     """
     global glade_coo
     if glade_coo is None:
-        print("Loading GLADE catalog coordinates...")
+        logger.info("Loading GLADE catalog coordinates...")
         glade = get_glade()
         glade_coo = SkyCoord(glade['RA'], glade['Dec'],frame='icrs',unit='deg')
     return glade_coo
@@ -60,7 +60,7 @@ def associate_galaxy(ra, dec, radius=30.0):
         radius (float): Search radius in arcseconds.
 
     Returns:
-        pandas.Series: The associated galaxy's data or None if no galaxy is within the radius.
+        tuple (galaxy name, d_L in Mpc). (None, None) if no galaxy is found within the radius.
     """
     glade = get_glade()
     glade_coo = get_glade_coo()
@@ -71,8 +71,9 @@ def associate_galaxy(ra, dec, radius=30.0):
     if sep2d.arcsecond <= radius:
         gal = glade.iloc[idx]
         if not pd.isna(gal.wiseX):
-            return f"{gal.wiseX} (wiseX)"
+            return f"{gal.wiseX} (wiseX)", gal.d_L
         else:
-            return f"{gal['SDSS-DR16Q']} (SDSS-DR16Q)"
+            return f"{gal['SDSS-DR16Q']} (SDSS-DR16Q)", gal.d_L
     else:
-        return None
+        logger.error(f"No galaxy found within {radius} arcseconds for candidate at RA: {ra}, Dec: {dec}.")
+        return None, None

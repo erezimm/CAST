@@ -73,6 +73,7 @@ class Candidate(models.Model):
     tns_name = models.CharField(max_length=100, null=True, blank=True)  # TNS name (if reported)
     reported_by_LAST = models.BooleanField(default=False)  # Reported by LAST
     host_galaxy = models.CharField(max_length=100, null=True, blank=True)  # Host galaxy name (if associated)
+    dist_Mpc = models.FloatField(null=True)  # Distance to the host galaxy in Mpc
     
     def save(self, *args, **kwargs):
         """
