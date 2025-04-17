@@ -127,6 +127,10 @@
                         <p>{% if item.candidate.host_galaxy %}
                             <b>Host galaxy:</b>
                             {{ item.candidate.host_galaxy }}
+                            <p>
+                                <b>Distance (Mpc):</b>
+                                {{ item.candidate.dist_Mpc|floatformat:2 }}
+                            </p>
                         {% endif %}
                         </p>
                         <p><b>Coordinates (RA, DEC):</b> {{ item.candidate.ra |floatformat:-5 }}, {{ item.candidate.dec |floatformat:-5}}</p>
@@ -187,7 +191,7 @@
                     </td>
                     <td>
                         {% if item.graph %}
-                        <div style="width: 600px; height: 400px;">
+                        <div style="width: 700px; height: 400px;">
                             {{ item.graph|safe }}
                         </div>
                         {% else %}
