@@ -75,12 +75,13 @@ class Candidate(models.Model):
     host_galaxy = models.CharField(max_length=100, null=True, blank=True)  # Host galaxy name (if associated)
     dist_Mpc = models.FloatField(null=True)  # Distance to the host galaxy in Mpc
     
-    def save(self, *args, **kwargs):
+    def save(self, check_tns=True, *args, **kwargs):
         """
         Override the save method to generate the SDSS-style name using astropy.
         """
         self.name = self.generate_LAST_name()
-        self.reported_by_LAST,self.tns_name = self.query_tns()
+        if check_tns:
+            self.reported_by_LAST,self.tns_name = self.query_tns()
         super().save(*args, **kwargs)
 
     def generate_LAST_name(self):
