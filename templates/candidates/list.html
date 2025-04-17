@@ -255,6 +255,13 @@
                         target="_blank">
                          Simbad Lookup
                         </a>
+                        <!-- Check NED-->
+                        <a href="https://ned.ipac.caltech.edu/cgi-bin/nph-objsearch?lon={{ item.candidate.ra }}d&lat={{ item.candidate.dec }}d&radius=2.0&search_type=Near+Position+Search" 
+                        class="btn btn-sm btn-secondary text-white" 
+                        style="background-color: rgb(56, 98, 146); border-color: rgb(56, 98, 146);" 
+                        target="_blank">
+                         NED Lookup
+                        </a>
                         {% if not item.candidate.tns_name%}
                             <!-- Check TNS-->
                             {% if tns_test %}
@@ -297,14 +304,6 @@
                             <button type="submit" class="btn btn-sm btn-warning">Send TNS Report</button>
                         </form>
                         {% endif %}
-                        <!-- Delete Button -->
-                        {% if request.user.is_superuser %}
-                        <form method="POST" action="{% url 'candidates:delete_candidate' %}" style="display:inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                        </form>
-                        {% endif %}
                         
                         <!-- Force Photometry Buttuns -->
                         <form method="POST" action="{% url 'candidates:refresh_atlas' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
@@ -335,6 +334,15 @@
                                 </button>
                             </div>
                         </form>
+
+                        <!-- Delete Button -->
+                        {% if request.user.is_superuser %}
+                        <form method="POST" action="{% url 'candidates:delete_candidate' %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}
