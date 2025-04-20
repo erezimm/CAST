@@ -349,10 +349,13 @@ def process_json_file(file):
             get_ztf_fp(existing_candidate)
 
         if not existing_candidate.host_galaxy:
-            gal_name, dist_Mpc = associate_galaxy(existing_candidate.ra, existing_candidate.dec)
+            gal_name, dist_Mpc, z = associate_galaxy(existing_candidate.ra, existing_candidate.dec)
             if gal_name:
                 existing_candidate.host_galaxy = gal_name
-                existing_candidate.dist_Mpc = dist_Mpc  # Assume always exists if found galaxy
+                
+                # Assume always exist if galaxy is found
+                existing_candidate.dist_Mpc = dist_Mpc  
+                existing_candidate.redshift = z
                 existing_candidate.save()
 
         return None
@@ -458,10 +461,13 @@ def process_json_file(file):
     
     # Associate with a host galaxy
     try:
-        gal_name, dist_Mpc = associate_galaxy(candidate.ra, candidate.dec)
+        gal_name, dist_Mpc, z = associate_galaxy(candidate.ra, candidate.dec)
         if gal_name:
             candidate.host_galaxy = gal_name
-            candidate.dist_Mpc = dist_Mpc  # assume always exists if found galaxy
+            
+            # Assume always exist if galaxy is found
+            candidate.dist_Mpc = dist_Mpc  
+            candidate.redshift = z
             candidate.save()
     except Exception as e:
         print(f"Error trying to associate galaxy for candidate {candidate.id}: {e}")

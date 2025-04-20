@@ -74,6 +74,7 @@ class Candidate(models.Model):
     reported_by_LAST = models.BooleanField(default=False)  # Reported by LAST
     host_galaxy = models.CharField(max_length=100, null=True, blank=True)  # Host galaxy name (if associated)
     dist_Mpc = models.FloatField(null=True)  # Distance to the host galaxy in Mpc
+    redshift = models.FloatField(null=True)  # Redshift of the host galaxy
     
     def save(self, check_tns=True, *args, **kwargs):
         """

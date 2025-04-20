@@ -49,7 +49,7 @@ def associate_galaxy(ra, dec, radius=30.0):
         radius (float): Search radius in arcseconds.
 
     Returns:
-        tuple (galaxy name, d_L in Mpc). (None, None) if no galaxy is found within the radius.
+        tuple (galaxy name, d_L in Mpc, redshift). (None, None, None) if no galaxy is found within the radius.
     """
     glade = get_glade()
     
@@ -65,12 +65,11 @@ def associate_galaxy(ra, dec, radius=30.0):
 
     if sep2d.arcsecond <= radius:
         gal = mini_glade.iloc[idx]
-        if not pd.isna(gal.wiseX):
-            logger.info(f"Found galaxy: {gal.wiseX} with separation {sep2d.arcsecond[0]:.2f} arcseconds and distance {gal.d_L:.2f} Mpc.")
-            return f"{gal.wiseX} (wiseX)", gal.d_L
-        else:
-            logger.info(f"Found galaxy: {gal['SDSS-DR16Q']} with separation {sep2d.arcsecond[0]:.2f} arcseconds and distance {gal.d_L:.2f} Mpc.")
-            return f"{gal['SDSS-DR16Q']} (SDSS-DR16Q)", gal.d_L
+        gal_name = next(
+            (f"{gal[col]} ({col})" for col in ["GWGC", "HyperLEDA", "2MASS", "wiseX", "SDSS-DR16Q"] if not pd.isna(gal[col])),
+            None)  # Get the first non-null galaxy name by priority of catalogs
+        logger.info(f"Found galaxy: {gal_name} with separation {sep2d.arcsecond[0]:.2f} arcseconds and distance {gal.d_L:.2f} Mpc.")
+        return gal_name, gal.d_L, gal.z_helio
     else:
         logger.error(f"No galaxy found within {radius} arcseconds for candidate at RA: {ra}, Dec: {dec}.")
-        return None, None
+        return None, None, None

@@ -131,6 +131,10 @@
                                 <b>Distance (Mpc):</b>
                                 {{ item.candidate.dist_Mpc|floatformat:2 }}
                             </p>
+                            <p>
+                                <b>Redshift:</b>
+                                {{ item.candidate.redshift|floatformat:6 }}
+                            </p>
                         {% endif %}
                         </p>
                         <p><b>Coordinates (RA, DEC):</b> {{ item.candidate.ra |floatformat:-5 }}, {{ item.candidate.dec |floatformat:-5}}</p>
