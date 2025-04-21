@@ -34,8 +34,12 @@ from django.utils.dateparse import parse_datetime
 from .models import Candidate, CandidateAlert, CandidateDataProduct, CandidatePhotometry
 from tom_dataproducts.models import ReducedDatum
 from tom_targets.models import Target
-from .photometry_utils import get_atlas_fp, get_ztf_fp, photometry_exists
+from .photometry_utils import get_atlas_fp, get_ztf_fp, add_photometry_from_last_report
 from .gal_association import associate_galaxy
+
+# Logging
+import logging
+logger = logging.getLogger(__name__)
 
 
 def cone_search_filter(queryset, ra, dec, radius):
@@ -261,45 +265,25 @@ def save_alert(candidate,discovery_datetime,filename,last_report = None):
     return alert
 
 
-def add_photometry_from_last_report(candidate,last_report):
+def add_ToO_names_to_candidate(candidate, last_report):
     """
-    Add photometry data from the json last report.
+    Check if candidate is ToO, and if so - add the ToO name to the candidate.
     :param candidate: Candidate instance
     :param last_report: last report section from the json file
+    :return: None
     """
-    detections_jd = np.array(last_report.get('detections_jd', {}))
-    detections = last_report.get('detections_mag', {})
-    detections_magerr = last_report.get('detections_magerr', {})
-    nondetections_jd = last_report.get('nondetections_jd', {})
-    nondetections_mag = last_report.get('nondetections_mag', {})
-    for i, jd in enumerate(detections_jd):
-        obs_date = Time(jd,format='jd').to_datetime()
-        magnitude = detections[i]
-        magnitude_error = detections_magerr[i]
-        if not photometry_exists(candidate, obs_date, magnitude, magnitude_error):
-            CandidatePhotometry.objects.create(
-                candidate=candidate,
-                obs_date=obs_date,
-                magnitude=magnitude,
-                magnitude_error=magnitude_error,
-                filter_band='clear',
-                telescope="LAST",
-                instrument="LAST-CAM"
-            )
-        else:
-            print("photometry exists")
+    if last_report != {}:
+        object_name = last_report.get('object')
+        field = last_report.get('field')
+        if object_name != field:
+            try:
+                ToO_name = object_name.split('.')[1]
+                logger.info(f"Found ToO name: {ToO_name} for candidate {candidate.id}")
+                candidate.ToO_name = ToO_name
+                candidate.save(check_tns=False)
+            except Exception as e:
+                logger.error(f"Error saving ToO name for candidate {candidate.id}: {e}")
 
-    for i, jd in enumerate(nondetections_jd):
-        obs_date = Time(jd,format='jd')
-        magnitude = nondetections_mag[i]
-        CandidatePhotometry.objects.create(
-            candidate=candidate,
-            obs_date=obs_date.iso,
-            limit = magnitude,
-            filter_band='clear',  # Use a mapping if needed to human-readable filter names
-            telescope="LAST",
-            instrument="LAST-CAM"
-            )
 
 def process_json_file(file):
     """
@@ -330,8 +314,7 @@ def process_json_file(file):
     if candidate_exists:
         save_alert(existing_candidate,discovery_datetime,file.name,last_report)
         if last_report != {}:
-            latest_photometry = CandidatePhotometry.objects.filter(candidate = existing_candidate).order_by('-obs_date').first()
-            # start_jd = Time(latest_photometry.obs_date.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S"), format='iso').jd
+            add_ToO_names_to_candidate(existing_candidate,last_report)
             add_photometry_from_last_report(existing_candidate,last_report)    
             wrapped_file = File(file)
             wrapped_file.name = os.path.basename(file.name)
@@ -418,6 +401,8 @@ def process_json_file(file):
             add_photometry_from_last_report(candidate,last_report)
         except Exception as e:
             print(f"Error adding photometry: {e}")
+
+        add_ToO_names_to_candidate(candidate,last_report)
 
         #cutout images ingestion
         update_candidate_cutouts(candidate)
@@ -622,8 +607,8 @@ def update_candidate_cutouts(candidate):
                 create_candidate_cutouts(candidate, new_cutout, 'new')
             if diff_cutout:
                 create_candidate_cutouts(candidate, diff_cutout, 'diff')
-        except:
-            print("Error updating cutouts")
+        except Exception as e:
+            logger.error(f"Error creating cutouts for candidate {candidate.id}: {e}")
             return None
 
 
