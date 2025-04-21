@@ -2,7 +2,7 @@ from .forms import FileUploadForm
 from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate,\
                    send_tns_report,update_candidate_cutouts,tns_report_details,\
                    get_horizons_data
-from .models import Candidate,CandidateDataProduct,CandidateAlert
+from .models import Candidate,CandidateDataProduct,CandidateAlert, CLASSIFICATION_CHOICES
 from .photometry_utils import generate_photometry_graph, get_atlas_fp, get_ztf_fp
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -143,17 +143,23 @@ def refresh_ztf_view(request, candidate_id):
 @user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())
 def candidate_list_view(request):
     """
-    Display a list of candidates with a filter for real/bogus status.
+    Display a list of candidates with a filter for classification status.
     """
     filter_value = request.GET.get('filter', 'all')  # Get filter value from URL, default to 'all'
-    
+    print("Classificatios of candidates: ", Candidate.objects.values_list('classification', flat=True).distinct())
     # Apply filtering based on the filter_value 
     if filter_value == 'real':
-        candidates = Candidate.objects.filter(real_bogus=True).order_by('-created_at')
+        candidates = Candidate.objects.filter(classification='real').order_by('-created_at')
     elif filter_value == 'bogus':
-        candidates = Candidate.objects.filter(real_bogus=False).order_by('-created_at')
-    elif filter_value == 'neither':
-        candidates = Candidate.objects.filter(real_bogus__isnull=True).order_by('-created_at')
+        candidates = Candidate.objects.filter(classification='bogus').order_by('-created_at')
+    elif filter_value == 'stellar':
+        candidates = Candidate.objects.filter(classification='stellar').order_by('-created_at')
+    elif filter_value == 'solar':
+        candidates = Candidate.objects.filter(classification='solar').order_by('-created_at')
+    elif filter_value == 'agn':
+        candidates = Candidate.objects.filter(classification='agn').order_by('-created_at')
+    elif filter_value == 'unclassified':
+        candidates = Candidate.objects.filter(classification__isnull=True).order_by('-created_at')
     elif filter_value == 'tns_reported':
         candidates = Candidate.objects.filter(reported_by_LAST=True).order_by('-created_at')
     elif filter_value == 'tns_not_reported':
@@ -265,29 +271,23 @@ def add_target_view(request):
 
     return redirect(redirect_url)
 
-def update_real_bogus_view(request, candidate_id):
+def update_classification_view(request, candidate_id):
     """
-    Updates the real/bogus status of a candidate based on the button clicked.
+    Updates the classification status of a candidate based on the button clicked.
     """
     if request.method == 'POST':
         candidate = get_object_or_404(Candidate, id=candidate_id)
-        real_bogus = request.POST.get('real_bogus')
-
-        # Map the input to the appropriate value
-        if real_bogus == 'real':
-            candidate.real_bogus = True
-        elif real_bogus == 'bogus':
-            candidate.real_bogus = False
-        elif real_bogus == 'null':
-            candidate.real_bogus = None
+        classification = request.POST.get('classification')
+        if classification == 'null':
+            candidate.classification = None
+            candidate.classification_user = None
         else:
-            messages.error(request, "Invalid real/bogus value selected.")
-            return redirect('candidates:list')
-        user = request.user
-        candidate.real_bogus_user = f"{user.first_name} {user.last_name}"
+            candidate.classification = classification
+            user = request.user
+            candidate.classification_user = f"{user.first_name} {user.last_name}"
 
         candidate.save()
-        messages.success(request, f"Updated {candidate.name} to {candidate.get_real_bogus_display()}.")
+        messages.success(request, f"Updated {candidate.name} to {classification}.")
 
     # Get the filter parameter from the request
     filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided

@@ -8,6 +8,15 @@ import requests
 import json
 import os
 
+CLASSIFICATION_CHOICES = [
+    ('real', 'Real'),
+    ('bogus', 'Bogus'),
+    ('stellar', 'Stellar'),
+    ('solar', 'Solar'),
+    ('agn', 'AGN'),
+]
+
+
 def tns_cone_search(ra, dec, radius=3.0):
     """
     Perform a cone search on the Transient Name Server.
@@ -56,19 +65,22 @@ def tns_cone_search(ra, dec, radius=3.0):
     except requests.RequestException as e:
         print(f"Error during TNS cone search: {e}")
         return None
-    
+
+
 class Candidate(models.Model):
     name = models.CharField(max_length=100)
     ra = models.FloatField()   # Right Ascension
     dec = models.FloatField()   # Declination
     file_source = models.FileField(upload_to='candidate_files/')  # Optional: To track file origin
     discovery_datetime = models.DateTimeField(null=True, blank=True)
-    real_bogus = models.BooleanField(
-        null=True,  # Allows for a "neither" state
-        blank=True,
-        default=None  # Default is "neither"
-    )
-    real_bogus_user = models.CharField(max_length=100, null=True, blank=True)  # User who classified the candidate
+    classification = models.CharField(
+        max_length=10,
+        choices=CLASSIFICATION_CHOICES,
+        default=None,
+        null=True,
+        blank=True
+    )    
+    classification_user = models.CharField(max_length=100, null=True, blank=True)  # User who classified the candidate
     created_at = models.DateTimeField(auto_now_add=True)
     tns_name = models.CharField(max_length=100, null=True, blank=True)  # TNS name (if reported)
     reported_by_LAST = models.BooleanField(default=False)  # Reported by LAST
@@ -168,16 +180,6 @@ class Candidate(models.Model):
         except Exception as e:
             return False, None
 
-
-    def get_real_bogus_display(self):
-        """
-        Return a human-readable string for the real/bogus classification.
-        """
-        if self.real_bogus is True:
-            return "Real"
-        elif self.real_bogus is False:
-            return "Bogus"
-        return "Neither"
     
     def __str__(self):
         return self.name
