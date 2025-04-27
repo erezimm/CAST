@@ -100,6 +100,8 @@
                     class="table-success"  
                     {% elif item.candidate.real_bogus is False %}
                     class="table-danger" 
+                    {% elif item.candidate.classification != None  %}
+                    class="table-warning"                     
                     {% endif %}
                     id="candidate-{{ item.candidate.id }}"
                 >
@@ -210,33 +212,75 @@
                         {% endif %}
                     </td>
                     <td>
-                        <!-- Real/Bogus Buttons -->
-                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="real_bogus" value="real">
-                            <button type="submit" class="btn btn-sm btn-success" {% if item.candidate.real_bogus is True %}disabled{% endif %}>
-                                Real
-                            </button>     
-                        </form>
+                        <div style="margin-top: 10px; display: flex; flex-direction: column; gap;">
+                            <!-- Real/Bogus Buttons -->
+                            <div style="display: flex; flex-direction: row; gap: 5px;">
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="real_bogus" value="real">
+                                    <button type="submit" class="btn btn-sm btn-success" {% if item.candidate.real_bogus is True %}disabled{% endif %}>
+                                        Real
+                                    </button>     
+                                </form>
 
-                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="real_bogus" value="bogus">
-                            <button type="submit" class="btn btn-sm btn-danger" {% if item.candidate.real_bogus is False %}disabled{% endif %}>
-                                Bogus
-                            </button>
-                        </form>
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="real_bogus" value="bogus">
+                                    <button type="submit" class="btn btn-sm btn-danger" {% if item.candidate.real_bogus is False %}disabled{% endif %}>
+                                        Bogus
+                                    </button>
+                                </form>
 
-                        <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="real_bogus" value="null">
-                            <button type="submit" class="btn btn-sm btn-secondary text-white">
-                                Reset
-                            </button>
-                        </form>
-                        {% if item.candidate.real_bogus_user %}
-                            <p><b>Set by:</b><br> {{ item.candidate.real_bogus_user }}</p>
-                        {% endif %}
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="real_bogus" value="null">
+                                    <button type="submit" class="btn btn-sm btn-secondary text-white">
+                                        Reset
+                                    </button>
+                                </form>
+                                {% if item.candidate.real_bogus_user %}
+                                    <p><b>Set by:</b><br> {{ item.candidate.real_bogus_user }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Row for Stellar, Solar, AGN Buttons -->
+                            <div style="display: flex; flex-direction: row; gap: 5px; margin-top: 10px">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="classification" value="stellar">
+                                    <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'stellar' %}disabled{% endif %}>
+                                        Stellar
+                                    </button>
+                                </form>
+                    
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="classification" value="solar">
+                                    <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'solar' %}disabled{% endif %}>
+                                        Solar
+                                    </button>
+                                </form>
+                    
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="classification" value="agn">
+                                    <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'agn' %}disabled{% endif %}>
+                                        AGN
+                                    </button>
+                                </form>
+                            </div>
+                    
+                            <!-- Row for Reset Button -->
+                            <div style="display: flex; justify-content: center; margin-top: 2px;">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="classification" value="null">
+                                    <button type="submit" class="btn btn-sm btn-secondary text-white">
+                                        Reset Classification
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
                     </td>
                     <td>
                         {% if item.target %}
@@ -308,6 +352,8 @@
                         <button type="button" class="btn btn-sm btn-warning" disabled>Reported to TNS</button>
                         {% elif item.candidate.real_bogus is False %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Target is Bogus</button>
+                        {% elif item.candidate.classification != None %}
+                        <button type="button" class="btn btn-sm btn-warning" disabled>Target is {{ item.candidate.classification }}</button>
                         {% else %}
                         <form method="POST" action="{% url 'candidates:tns_report_details' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
                             {% csrf_token %}

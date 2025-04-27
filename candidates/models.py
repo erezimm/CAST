@@ -8,6 +8,14 @@ import requests
 import json
 import os
 
+
+CLASSIFICATION_CHOICES = [
+    ('stellar', 'Stellar'),
+    ('solar', 'Solar'),
+    ('agn', 'AGN'),
+]
+
+
 def tns_cone_search(ra, dec, radius=3.0):
     """
     Perform a cone search on the Transient Name Server.
@@ -76,6 +84,13 @@ class Candidate(models.Model):
     dist_Mpc = models.FloatField(null=True)  # Distance to the host galaxy in Mpc
     redshift = models.FloatField(null=True)  # Redshift of the host galaxy
     ToO_name = models.CharField(max_length=100, null=True, blank=True)  # If ToO, the name of the target
+    classification = models.CharField(
+        max_length=10,
+        choices=CLASSIFICATION_CHOICES,
+        default=None,
+        null=True,
+        blank=True
+    )
     
     def save(self, check_tns=True, *args, **kwargs):
         """
