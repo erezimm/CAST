@@ -312,6 +312,46 @@ def update_real_bogus_view(request, candidate_id):
 
     return redirect(redirect_url)
 
+
+def update_classification_view(request, candidate_id):
+    """
+    Updates the classification status of a candidate based on the button clicked.
+    """
+    if request.method == 'POST':
+        candidate = get_object_or_404(Candidate, id=candidate_id)
+        classification = request.POST.get('classification')
+        if classification == 'null':
+            candidate.classification = None
+            candidate.save()
+            messages.success(request, f"Reset {candidate.name} classification.")
+        else:
+            candidate.classification = classification
+            candidate.save()
+            messages.success(request, f"Updated {candidate.name} classification to {classification}.")
+
+    # Get the filter parameter from the request
+    filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided
+    # Redirect to the candidate list with the current filter, start date, end date, and anchor
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
+    
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
+
+    # Add anchor for the specific candidate
+    redirect_url += f"#candidate-{candidate.id}"
+
+    return redirect(redirect_url)
+
 @login_required
 @user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())
 def send_tns_report_view(request, candidate_id):
