@@ -212,6 +212,9 @@
                         {% endif %}
                     </td>
                     <td>
+                        <div style="display: flex; flex-direction: row; gap: 5px;">
+                            <b>Real/Bogus:</b>
+                        </div>
                         <div style="margin-top: 10px; display: flex; flex-direction: column; gap;">
                             <!-- Real/Bogus Buttons -->
                             <div style="display: flex; flex-direction: row; gap: 5px;">
@@ -238,6 +241,9 @@
                                         Reset
                                     </button>
                                 </form>
+                            </div>
+
+                            <div style="margin-top: 10px; display: flex; flex-direction: column; gap;">
                                 {% if item.candidate.real_bogus_user %}
                                     <p><b>Set by:</b><br> {{ item.candidate.real_bogus_user }}</p>
                                 {% endif %}
@@ -245,6 +251,9 @@
 
                             <!-- Row for Stellar, Solar, AGN Buttons -->
                             <div style="display: flex; flex-direction: row; gap: 5px; margin-top: 10px">
+                                <b>Classification:</b>
+                            </div>
+                            <div style="display: flex; flex-direction: row; gap: 5px;">
                                 <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="stellar">
@@ -265,13 +274,13 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="agn">
                                     <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'agn' %}disabled{% endif %}>
-                                        AGN
+                                        Nuclear
                                     </button>
                                 </form>
                             </div>
                     
                             <!-- Row for Reset Button -->
-                            <div style="display: flex; justify-content: center; margin-top: 2px;">
+                            <div style="display: flex; justify-content: margin-top: 2px;">
                                 <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="null">
