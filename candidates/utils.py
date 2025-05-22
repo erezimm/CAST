@@ -302,7 +302,7 @@ def process_json_file(file):
 
     candidates_added = 0
 
-
+    logger.info(f"Processing file: {file.name}")
     at_report = data.get('at_report', {})
     last_report = data.get('last_report', {})
     ra = at_report.get('RA', {}).get('value')
@@ -469,16 +469,16 @@ def process_multiple_json_files(directory_path):
     # json_files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
     last_candidate_alert = CandidateAlert.objects.order_by('-created_at').first()
     process_after_date = last_candidate_alert.created_at if last_candidate_alert else datetime.min
-
+    logger.info(f"Processing files modified after: {process_after_date}")
     # computer_time_zone = zoneinfo.ZoneInfo("UTC")
     # Convert process_after_date to a naive Python datetime object (strip timezone), notice the timezone is currently hardcoded to "Asia/Jerusalem"
     if process_after_date.tzinfo is not None:
         process_after_date = process_after_date.replace(tzinfo=None)
-    print(process_after_date)
     json_files = [
         file for file in glob.glob(os.path.join(directory_path, "*.json"))
         if datetime.fromtimestamp(os.path.getmtime(file)) > process_after_date
     ]
+    logger.info(f"Found {len(json_files)} files to process.")
     total_candidates_added = 0
 
     for json_file in json_files:
@@ -487,15 +487,15 @@ def process_multiple_json_files(directory_path):
             with open(file_path, 'rb') as file:  # Open each file in binary mode
                 candidates_added = process_json_file(file)
                 if candidates_added:
-                    print(f"Processed {json_file}: {candidates_added} candidate(s) added.")
+                    logger.info(f"Processed {json_file}: {candidates_added} candidate(s) added.")
                     total_candidates_added += candidates_added
                 else:
-                    print(f"Skipping {json_file}: Candidate already exists or no RA/Dec found.")
+                    logger.error(f"Skipping {json_file}: Candidate already exists or no RA/Dec found.")
         except Exception as e:
-            print(f"Error processing {json_file}: {e}")
+            logger.info(f"Error processing {json_file}: {e}")
             traceback.print_exc()
 
-    print(f"Total candidates added: {total_candidates_added}")
+    logger.info(f"Total candidates added: {total_candidates_added}")
     return total_candidates_added
 
 
