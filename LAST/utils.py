@@ -165,7 +165,7 @@ def get_fields_per_date(date_str,mounts=['01', '02', '03', '05', '06', '07', '08
     return summary_df,field_counts
 
 def plot_fields(fields, field_counts,date_str=datetime.now().strftime('%Y-%m-%d'), colormap=True):
-    last_fields_path = os.path.join(settings.BASE_DIR, "data", "LAST")
+    last_fields_path = os.path.join(settings.MEDIA_ROOT, "LAST")
     last_fields = pd.read_pickle(last_fields_path+"/LAST_sky_fields.pkl")
     last_fields['RA_min_rad'] = np.deg2rad(last_fields.RA_min)
     last_fields['RA_max_rad'] = np.deg2rad(last_fields.RA_max)
@@ -178,7 +178,7 @@ def plot_fields(fields, field_counts,date_str=datetime.now().strftime('%Y-%m-%d'
     plot_fields_with_ra_0_to_24(last_fields, field_counts)
     
     plt.tight_layout()
-    plot_path = os.path.join(settings.BASE_DIR, "static", "LAST", "plots")
+    plot_path = os.path.join(settings.STATIC_ROOT, "LAST", "plots")
     print("hello")
     plt.savefig(plot_path+f"/{date_str}.png", dpi=300)
     plt.close()
