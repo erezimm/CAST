@@ -128,13 +128,19 @@ def format_time_no_ms(astropy_time):
     dt = astropy_time.to_datetime()
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
-def get_fields_per_date(date_str,mounts=['01', '02', '03', '05', '06', '07', '08', '09', '10']):
-    client = connect_to_clickhouse()
+def get_sunset_sunrise(date_str):
     loc = EarthLocation(lat=30.052984, lon=35.040677, height=400)
     observer = Observer(location=loc, timezone='UTC')
     date = Time(date_str)
-    sunset = format_time_no_ms(observer.sun_set_time(date, which='next'))
-    sunrise = format_time_no_ms(observer.sun_rise_time(date + 1*u.day, which='next'))
+    sunset = observer.sun_set_time(date, which='next')
+    sunrise = observer.sun_rise_time(date + 1*u.day, which='next')
+    return sunset, sunrise
+
+def get_fields_per_date(date_str,mounts=['01', '02', '03', '05', '06', '07', '08', '09', '10']):
+    client = connect_to_clickhouse()
+    sunset, sunrise = get_sunset_sunrise(date_str)
+    sunset = format_time_no_ms(sunset)
+    sunrise = format_time_no_ms(sunrise)
     records = []
     for mount in mounts:
         query = f"""select * FROM observatory_operation.operation_strings  
@@ -164,7 +170,7 @@ def get_fields_per_date(date_str,mounts=['01', '02', '03', '05', '06', '07', '08
     client.close()
     return summary_df,field_counts
 
-def plot_fields(fields, field_counts,date_str=datetime.now().strftime('%Y-%m-%d'), colormap=True):
+def plot_fields(date_str=datetime.now().strftime('%Y-%m-%d'), colormap=True):
     last_fields_path = os.path.join(settings.MEDIA_ROOT, "LAST")
     last_fields = pd.read_pickle(last_fields_path+"/LAST_sky_fields.pkl")
     last_fields['RA_min_rad'] = np.deg2rad(last_fields.RA_min)
@@ -179,7 +185,6 @@ def plot_fields(fields, field_counts,date_str=datetime.now().strftime('%Y-%m-%d'
     
     plt.tight_layout()
     plot_path = os.path.join(settings.STATIC_ROOT, "LAST", "plots")
-    print("hello")
     plt.savefig(plot_path+f"/{date_str}.png", dpi=300)
     plt.close()
     return plot_path
