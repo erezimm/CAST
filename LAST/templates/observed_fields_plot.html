@@ -1,0 +1,28 @@
+{% extends 'tom_common/base.html' %}
+{% load static %}
+
+{% block title %}Observed Fields – {{ night }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Observed Fields on {{ night }}</h1>
+
+    <!-- Date selection form (query param-based) -->
+    <form method="get" action="{% url 'LAST:observed-fields' %}" class="mb-4">
+        <div class="row justify-content-left">
+            <div class="col-md-3">
+                <label for="night">Select Date:</label>
+                <input type="date" name="night" id="night" class="form-control" value="{{ night }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Go</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Plot image -->
+    <div class="text-center">
+        <img src="{% static 'LAST/plots/'|add:night|add:'.png' %}" alt="Sky Plot for {{ night }}" class="img-fluid rounded shadow-sm">
+    </div>
+</div>
+{% endblock %}
