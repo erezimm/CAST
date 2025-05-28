@@ -6,6 +6,7 @@ import requests
 import time
 import traceback
 from collections import OrderedDict
+from datetime import datetime, timedelta
 from datetime import datetime
 from io import BytesIO, StringIO
 from math import radians
@@ -314,8 +315,6 @@ def process_json_file(file):
     if candidate_exists:
         save_alert(existing_candidate,discovery_datetime,file.name,last_report)
         if last_report != {}:
-            add_ToO_names_to_candidate(existing_candidate,last_report)
-            add_photometry_from_last_report(existing_candidate,last_report)    
             wrapped_file = File(file)
             wrapped_file.name = os.path.basename(file.name)
             CandidateDataProduct.objects.create(
@@ -324,6 +323,8 @@ def process_json_file(file):
             data_product_type='json',
             name = wrapped_file.name
             )
+            add_ToO_names_to_candidate(existing_candidate,last_report)
+            add_photometry_from_last_report(existing_candidate,last_report)    
             #update candidate cutouts
             update_candidate_cutouts(existing_candidate)
             
@@ -460,39 +461,82 @@ def process_json_file(file):
     return candidates_added
     
 
-def process_multiple_json_files(directory_path):
+# def process_multiple_json_files(directory_path):
+#     """
+#     Processes multiple JSON files from a given directory and adds candidates to the database.
+#     :param directory_path: Path to the directory containing JSON files
+#     :return: The total number of candidates successfully added
+#     """
+#     # json_files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
+#     last_candidate_alert = CandidateAlert.objects.order_by('-created_at').first()
+#     process_after_date = last_candidate_alert.created_at if last_candidate_alert else datetime.min
+#     logger.info(f"Processing files modified after: {process_after_date}")
+#     # computer_time_zone = zoneinfo.ZoneInfo("UTC")
+#     # Convert process_after_date to a naive Python datetime object (strip timezone), notice the timezone is currently hardcoded to "Asia/Jerusalem"
+#     if process_after_date.tzinfo is not None:
+#         process_after_date = process_after_date.replace(tzinfo=None)
+#     json_files = [
+#         file for file in glob.glob(os.path.join(directory_path, "*.json"))
+#         if datetime.fromtimestamp(os.path.getmtime(file)) > process_after_date
+#     ]
+#     logger.info(f"Found {len(json_files)} files to process.")
+#     total_candidates_added = 0
+
+#     for json_file in json_files:
+#         file_path = os.path.join(directory_path, json_file)
+#         try:
+#             with open(file_path, 'rb') as file:  # Open each file in binary mode
+#                 candidates_added = process_json_file(file)
+#                 if candidates_added:
+#                     logger.info(f"Processed {json_file}: {candidates_added} candidate(s) added.")
+#                     total_candidates_added += candidates_added
+#                 else:
+#                     logger.error(f"Skipping {json_file}: Candidate already exists or no RA/Dec found.")
+#         except Exception as e:
+#             logger.info(f"Error processing {json_file}: {e}")
+#             traceback.print_exc()
+
+#     logger.info(f"Total candidates added: {total_candidates_added}")
+#     return total_candidates_added
+
+def process_multiple_json_files(directory_path,cutoff=3):
     """
-    Processes multiple JSON files from a given directory and adds candidates to the database.
+    Processes new JSON files from the last day that are not already in the database.
     :param directory_path: Path to the directory containing JSON files
     :return: The total number of candidates successfully added
     """
-    # json_files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
-    last_candidate_alert = CandidateAlert.objects.order_by('-created_at').first()
-    process_after_date = last_candidate_alert.created_at if last_candidate_alert else datetime.min
-    logger.info(f"Processing files modified after: {process_after_date}")
-    # computer_time_zone = zoneinfo.ZoneInfo("UTC")
-    # Convert process_after_date to a naive Python datetime object (strip timezone), notice the timezone is currently hardcoded to "Asia/Jerusalem"
-    if process_after_date.tzinfo is not None:
-        process_after_date = process_after_date.replace(tzinfo=None)
+
+    # Step 1: Get JSON names already in DB
+    existing_json_names = set(
+        CandidateDataProduct.objects.filter(data_product_type='json')
+        .values_list('name', flat=True)
+    )
+
+    # Step 2: Set time cutoff to 24 hours ago
+    cutoff_time = datetime.now() - timedelta(days=cutoff)
+
+    # Step 3: Collect new JSON files
     json_files = [
         file for file in glob.glob(os.path.join(directory_path, "*.json"))
-        if datetime.fromtimestamp(os.path.getmtime(file)) > process_after_date
+        if datetime.fromtimestamp(os.path.getmtime(file)) > cutoff_time
+        and os.path.basename(file) not in existing_json_names
     ]
-    logger.info(f"Found {len(json_files)} files to process.")
+
+    logger.info(f"Found {len(json_files)} new files to process.")
     total_candidates_added = 0
 
+    # Step 4: Process each new file
     for json_file in json_files:
-        file_path = os.path.join(directory_path, json_file)
         try:
-            with open(file_path, 'rb') as file:  # Open each file in binary mode
+            with open(json_file, 'rb') as file:
                 candidates_added = process_json_file(file)
                 if candidates_added:
-                    logger.info(f"Processed {json_file}: {candidates_added} candidate(s) added.")
+                    logger.info(f"Processed {os.path.basename(json_file)}: {candidates_added} candidate(s) added.")
                     total_candidates_added += candidates_added
                 else:
-                    logger.error(f"Skipping {json_file}: Candidate already exists or no RA/Dec found.")
+                    logger.warning(f"Skipping {os.path.basename(json_file)}: Candidate already exists or no RA/Dec found.")
         except Exception as e:
-            logger.info(f"Error processing {json_file}: {e}")
+            logger.error(f"Error processing {os.path.basename(json_file)}: {e}")
             traceback.print_exc()
 
     logger.info(f"Total candidates added: {total_candidates_added}")
