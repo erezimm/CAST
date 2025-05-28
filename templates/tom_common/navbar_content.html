@@ -29,9 +29,13 @@ For customization instructions, see tom_common/base.html
         <a class="dropdown-item" href="{% url 'targets:targetgrouping' %}">Target Grouping</a>
     </div>
 </li>
+
+<li class="nav-item {% if request.resolver_match.namespace == 'LAST' %}active{% endif %}">
+    <a class="nav-link" href="{% url 'LAST:observed-fields' %}">Observed Fields</a>
+</li>
 <!-- <li class="nav-item dropdown">
     <a class="nav-link dropdown-toggle" data-toggle="dropdown">Observations</a>
-    <ul class="dropdown-menu">
+    <ul class="dropdown-menu"> 
         <li class="nav-item {% if request.resolver_match.namespace == 'observations' %}active{% endif %}">
             <a class="nav-link" href="{% url 'tom_observations:list' %}" style="color:black">Observations</a>
         </li>
