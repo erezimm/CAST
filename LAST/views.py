@@ -33,6 +33,5 @@ def observed_fields_plot_view(request, night=None):
     context = {
         'plot_path': f"{settings.STATIC_ROOT}/LAST/plots/{filename}",
         'night': night,
-        'sunset':sunset.strftime('%Y-%m-%d %H:%M:%S'),
     }
     return render(request, 'observed_fields_plot.html', context)
