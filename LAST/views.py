@@ -13,8 +13,8 @@ def observed_fields_plot_view(request, night=None):
 
     # Prepare file paths
     filename = f"{night}.png"
-    plot_rel_path = os.path.join("static", "LAST", "plots", filename)
-    plot_abs_path = os.path.join(settings.BASE_DIR, plot_rel_path)
+    plot_rel_path = os.path.join("LAST", "plots", filename)
+    plot_abs_path = os.path.join(settings.STATIC_ROOT, plot_rel_path)
 
     # Generate plot if not already saved
     try:

@@ -461,44 +461,6 @@ def process_json_file(file):
     return candidates_added
     
 
-# def process_multiple_json_files(directory_path):
-#     """
-#     Processes multiple JSON files from a given directory and adds candidates to the database.
-#     :param directory_path: Path to the directory containing JSON files
-#     :return: The total number of candidates successfully added
-#     """
-#     # json_files = [f for f in os.listdir(directory_path) if f.endswith('.json')]
-#     last_candidate_alert = CandidateAlert.objects.order_by('-created_at').first()
-#     process_after_date = last_candidate_alert.created_at if last_candidate_alert else datetime.min
-#     logger.info(f"Processing files modified after: {process_after_date}")
-#     # computer_time_zone = zoneinfo.ZoneInfo("UTC")
-#     # Convert process_after_date to a naive Python datetime object (strip timezone), notice the timezone is currently hardcoded to "Asia/Jerusalem"
-#     if process_after_date.tzinfo is not None:
-#         process_after_date = process_after_date.replace(tzinfo=None)
-#     json_files = [
-#         file for file in glob.glob(os.path.join(directory_path, "*.json"))
-#         if datetime.fromtimestamp(os.path.getmtime(file)) > process_after_date
-#     ]
-#     logger.info(f"Found {len(json_files)} files to process.")
-#     total_candidates_added = 0
-
-#     for json_file in json_files:
-#         file_path = os.path.join(directory_path, json_file)
-#         try:
-#             with open(file_path, 'rb') as file:  # Open each file in binary mode
-#                 candidates_added = process_json_file(file)
-#                 if candidates_added:
-#                     logger.info(f"Processed {json_file}: {candidates_added} candidate(s) added.")
-#                     total_candidates_added += candidates_added
-#                 else:
-#                     logger.error(f"Skipping {json_file}: Candidate already exists or no RA/Dec found.")
-#         except Exception as e:
-#             logger.info(f"Error processing {json_file}: {e}")
-#             traceback.print_exc()
-
-#     logger.info(f"Total candidates added: {total_candidates_added}")
-#     return total_candidates_added
-
 def process_multiple_json_files(directory_path,cutoff=3):
     """
     Processes new JSON files from the last day that are not already in the database.
