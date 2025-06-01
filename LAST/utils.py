@@ -10,7 +10,8 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
+from astropy.coordinates.angle_utilities import angular_separation
 import argparse
 import os
 import matplotlib
@@ -84,24 +85,50 @@ def plot_fields_with_ra_0_to_24(fields, field_counts,colormap=True):
         norm = Normalize(vmin=field_counts['count'].min(), vmax=10)#field_counts['count'].max())
         cmap = plt.cm.nipy_spectral  # Use a vibrant colormap
         sm = ScalarMappable(norm=norm, cmap=cmap)
-        
+    
+    field_size = np.sqrt(30) * u.deg  # 30 arcmin = 0.5°, so half-size is 0.25°
     for _, row in fields.iterrows():
-        field = row.ID
-        vertices = [
-            (row.RA_min_rad, row.Dec_min_rad),
-            (row.RA_min_rad, row.Dec_max_rad),
-            (row.RA_max_rad, row.Dec_max_rad),
-            (row.RA_max_rad, row.Dec_min_rad),
-        ]
-        vertices = [(-v[0] + np.pi, v[1]) for v in vertices]  # Shift RA to [-π, π] for Mollweide projection
+        # field = row.ID
+        # vertices = [
+        #     (row.RA_min_rad, row.Dec_min_rad),
+        #     (row.RA_min_rad, row.Dec_max_rad),
+        #     (row.RA_max_rad, row.Dec_max_rad),
+        #     (row.RA_max_rad, row.Dec_min_rad),
+        # ]
+        # vertices = [(-v[0] + np.pi, v[1]) for v in vertices]  # Shift RA to [-π, π] for Mollweide projection
+        # # vertices = [(((-ra + np.pi + np.pi) % (2 * np.pi)) - np.pi, dec) for ra, dec in vertices]
         
-        # Get count for the field and determine its color
+        # # Get count for the field and determine its color
+        # if colormap:
+        #     count = field_counts[field_counts['field'] == int(field)]['count'].values[0]
+        #     color = cmap(norm(count))
+        # else:
+        #     color = "lightblue"
+        
+        # poly = Polygon(vertices, closed=True, edgecolor="black", facecolor=color, lw=0.5)
+        # ax.add_patch(poly)
+        field = row.ID
+        corners = [
+            (row.RA_min, row.Dec_min),
+            (row.RA_min, row.Dec_max),
+            (row.RA_max, row.Dec_max),
+            (row.RA_max, row.Dec_min),
+        ]
+
+        # Convert to radians and Mollweide-safe coordinates
+        vertices = []
+        for ra_deg, dec_deg in corners:
+            ra_rad = np.deg2rad(ra_deg)
+            ra_rad = ((-ra_rad + np.pi + np.pi) % (2 * np.pi)) - np.pi  # RA wrapping
+            dec_rad = np.deg2rad(dec_deg)
+            vertices.append((ra_rad, dec_rad))
+
         if colormap:
             count = field_counts[field_counts['field'] == int(field)]['count'].values[0]
             color = cmap(norm(count))
         else:
             color = "lightblue"
-        
+
         poly = Polygon(vertices, closed=True, edgecolor="black", facecolor=color, lw=0.5)
         ax.add_patch(poly)
 
@@ -179,7 +206,7 @@ def plot_fields(date_str=datetime.now().strftime('%Y-%m-%d'), colormap=True):
     last_fields['Dec_max_rad'] = np.deg2rad(last_fields.Dec_max)
 
     summary_df,field_counts = get_fields_per_date(date_str)
-    survey_fields = summary_df[summary_df['target'].isna()]
+    survey_fields = summary_df#[summary_df['target'].isna()]
     last_fields = last_fields[last_fields['ID'].isin(survey_fields['field'])]
     plot_fields_with_ra_0_to_24(last_fields, field_counts)
     
