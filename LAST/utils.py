@@ -17,6 +17,7 @@ import os
 import matplotlib
 matplotlib.use('Agg')
 from django.conf import settings
+import re
 
 
 # connect to ClickHouse database
@@ -125,7 +126,10 @@ def plot_fields_with_ra_0_to_24(fields, field_counts,colormap=True):
 
         if colormap:
             count = field_counts[field_counts['field'] == int(field)]['count'].values[0]
-            color = cmap(norm(count))
+            if count > 10:
+                color = "lightblue"
+            else:
+                color = cmap(norm(count))
         else:
             color = "lightblue"
 
@@ -183,7 +187,9 @@ def get_fields_per_date(date_str,mounts=['01', '02', '03', '05', '06', '07', '08
         df['mount'] = mount
         df['field']= df['value'].apply(lambda x: x[x.find('"')+1:x.rfind('"')])
         df['target'] = df['field'].apply(lambda x: x.split('.')[1] if '.' in x else pd.NA)
-        df['field'] = df['field'].apply(lambda x: int(x.split('.')[0]) if '.' in x else int(x))
+        # df['field'] = df['field'].apply(lambda x: int(x.split('.')[0]) if '.' in x else int(x))
+        df['field'] = df['field'].apply(lambda x: int(re.sub(r'\D', '', x.split('.')[0])) if re.search(r'\d', x) else pd.NA)
+
         df_reduced = df[['mount','time', 'field', 'target']]
         records.append(df_reduced)
     # Combine all into a single DataFrame
