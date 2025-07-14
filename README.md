@@ -34,6 +34,7 @@ Once your TOM base project is running, install the `candidates` application:
    INSTALLED_APPS = [
        # ... existing apps
        'candidates',
+       'LAST',
    ]
 2. **Run database migrations**:
    ```python
@@ -62,6 +63,23 @@ Once your TOM base project is running, install the `candidates` application:
    
    In the file `candidates/models.py`, find and replace `www.wis-tns.org` with `sandbox.wis-tns.org` (2 occurences)
 
+3. **Add LAST_DB for Observation page**:
+   ```python
+   LAST_DB = {
+    'host': '',  # host of last0
+    'port': ,
+    'username': '', 
+    'password': ''
+    },
+  ```
+
+4. **For Observation page - make sure you set both STATIC dirs to the same path**:
+   ```python
+   STATIC_URL = '/static/'
+   STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+   STATICFILES_DIRS = [os.path.join(BASE_DIR, '_static')]  # make sure STATICFILES_DIR does not contain STATIC_ROOT
+  ```
+
 ### 4. Update `urls.py` file
 Make sure you have the `django` imports and the `about/` and `candidates/` paths in `urlpatterns`
    ```python
@@ -72,6 +90,7 @@ Make sure you have the `django` imports and the `about/` and `candidates/` paths
        path('', include('tom_common.urls')),
        path('about/', TemplateView.as_view(template_name='about.html'), name='about'),
        path('candidates/', include('candidates.urls')),  # Include URLs for the candidates app
+       path('LAST/', include('LAST.urls')),  # Include URLs for the LAST app
    ]
    ```
 
@@ -81,8 +100,11 @@ Make sure you have the `django` imports and the `about/` and `candidates/` paths
    ```python
    python manage.py collectstatic
    
-3. **Run the development server:**
+2. **Run the development server:**
    ```python
    python manage.py runserver
+
+3. **Create plots directory for Observation page **
+   In your TOM  directory, enter '_statc' folder and create the subfolers '_statc\LAST\plots'. 
    
 Open http://127.0.0.1:8000 in your browser to use the application.
