@@ -35,6 +35,7 @@ Once your TOM base project is running, install the `candidates` application:
        # ... existing apps
        'candidates',
        'LAST',
+       'FP',
    ]
 2. **Run database migrations**:
    ```python
@@ -91,6 +92,7 @@ Make sure you have the `django` imports and the `about/` and `candidates/` paths
        path('about/', TemplateView.as_view(template_name='about.html'), name='about'),
        path('candidates/', include('candidates.urls')),  # Include URLs for the candidates app
        path('LAST/', include('LAST.urls')),  # Include URLs for the LAST app
+       path('FP/', include('FP.urls')),
    ]
    ```
 
@@ -104,7 +106,7 @@ Make sure you have the `django` imports and the `about/` and `candidates/` paths
    ```python
    python manage.py runserver
 
-3. **Create plots directory for Observation page **
+3. **Create plots directory for Observation page**
    In your TOM  directory, enter '_statc' folder and create the subfolers '_statc\LAST\plots'. 
    
 Open http://127.0.0.1:8000 in your browser to use the application.
