@@ -6,6 +6,7 @@ from .models import Candidate,CandidateDataProduct,CandidateAlert
 from .photometry_utils import generate_photometry_graph, get_atlas_fp, get_ztf_fp
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.utils.safestring import mark_safe
 from django.urls import reverse
 from django.core.paginator import Paginator
 from datetime import timedelta
@@ -17,6 +18,8 @@ from collections import defaultdict
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 from django.conf import settings
+from django.db.models import Q
+
 
 def upload_file_view(request):
     """
@@ -186,11 +189,12 @@ def candidate_list_view(request):
     elif filter_value == 'bogus':
         candidates = Candidate.objects.filter(real_bogus=False).order_by('-created_at')
     elif filter_value == 'neither':
-        candidates = Candidate.objects.filter(real_bogus__isnull=True).order_by('-created_at')
+        candidates = Candidate.objects.filter(real_bogus__isnull=True, classification__isnull=True).order_by('-created_at')
     elif filter_value == 'tns_reported':
         candidates = Candidate.objects.filter(reported_by_LAST=True).order_by('-created_at')
     elif filter_value == 'tns_not_reported':
-        candidates = Candidate.objects.filter(reported_by_LAST=False).order_by('-created_at')
+        # Filter candidates that are not reported by LAST and not bogus but could be real and has not classification
+        candidates = Candidate.objects.filter(reported_by_LAST=False, classification__isnull=True).filter(Q(real_bogus__isnull=True) | Q(real_bogus=True)).order_by('-created_at')
     else:  # 'all'
         candidates = Candidate.objects.all().order_by('-created_at')
 
@@ -397,7 +401,12 @@ def send_tns_report_view(request, candidate_id):
     try:
         user = request.user
         send_tns_report(candidate,user.first_name,user.last_name)
-        messages.success(request, f"TNS report successfully sent for {candidate.name}.")
+        # Add a success message with the candidate name being a link to the candidate detail page
+        messages.success(
+    request,
+    mark_safe(f"TNS report successfully sent for <a href='/candidates/{candidate.pk}/'>{candidate.name}</a>.")
+)
+
     except Exception as e:
         messages.error(request, f"Failed to send TNS report for {candidate.name}: {e}")
 
