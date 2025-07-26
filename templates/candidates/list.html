@@ -400,14 +400,26 @@
                                 </button>
                             </div>
                         </form>
-
-                        <!-- Delete Button -->
+                        <!-- make a new row for admin actions-->
                         {% if request.user.is_superuser %}
-                        <form method="POST" action="{% url 'candidates:delete_candidate' %}" style="display:inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                        </form>
+                            <div class="mt-2">
+                                <b>Admin Actions:</b>
+                            </div>
+                            <!-- Update Candidate report status for admins only-->
+                             {% if not item.candidate.reported_by_LAST %}
+                            <form method="POST" action="{% url 'candidates:set_reported_by_LAST' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                                <button type="submit" class="btn btn-sm btn-secondary text-white">Set as reported</button>
+                            </form>
+                            {% endif %}
+
+                            <!-- Delete Button -->
+                            <form method="POST" action="{% url 'candidates:delete_candidate' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
                         {% endif %}
                     </td>
                 </tr>

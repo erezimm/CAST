@@ -1,7 +1,7 @@
 from .forms import FileUploadForm
 from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate,\
                    send_tns_report,update_candidate_cutouts,tns_report_details,\
-                   get_horizons_data
+                   get_horizons_data, set_reported_by_LAST
 from .models import Candidate,CandidateDataProduct,CandidateAlert
 from .photometry_utils import generate_photometry_graph, get_atlas_fp, get_ztf_fp
 from django.shortcuts import render, redirect, get_object_or_404
@@ -101,6 +101,39 @@ def refresh_atlas_view(request, candidate_id):
 
     return redirect(redirect_url)
 
+def set_reported_by_last_view(request, candidate_id):
+    """
+    Set the reported_by_LAST field for a candidate.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    try:
+        set_reported_by_LAST(candidate_id)
+        messages.success(request, f"Candidate {candidate.name} has been set as reported by LAST.")
+    except Exception as e:
+        messages.error(request, f"Failed to set reported_by_LAST for {candidate.name}: {e}")
+
+    # Get the filter parameter from the request
+    filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided
+    # Redirect to the candidate list with the current filter, start date, end date, and anchor
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
+    
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
+
+    # Add anchor for the specific candidate
+    redirect_url += f"#candidate-{candidate.id}"
+
+    return redirect(redirect_url)
 
 def refresh_ztf_view(request, candidate_id):
     """

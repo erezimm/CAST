@@ -859,6 +859,23 @@ def send_tns_report(candidate,first_name,last_name):
         print(f"Error saving candidate: {e}")
     print(candidate.tns_name)
 
+def set_reported_by_LAST(candidate_id):
+    """
+    Set the candidate as reported by LAST and save the reporter's name.
+    :param candidate_id: The ID of the candidate.
+    :param first_name: The first name of the reporter.
+    :param last_name: The last name of the reporter.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    candidate.reported_by_LAST = True
+    try:
+        if candidate.tns_name:  
+            candidate.save(check_tns=False)  # Avoid TNS check if not needed
+        else:
+            candidate.save()
+        logger.info(f"Candidate {candidate_id} marked as reported by LAST.")
+    except Exception as e:
+        logger.error(f"Error saving candidate: {e}")
 
 def get_horizons_data(candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)
