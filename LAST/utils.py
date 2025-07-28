@@ -19,6 +19,10 @@ matplotlib.use('Agg')
 from django.conf import settings
 import re
 
+#Get the logger
+import logging
+logger = logging.getLogger(__name__)
+
 
 # connect to ClickHouse database
 def connect_to_clickhouse():
@@ -77,43 +81,26 @@ def plot_fields_with_ra_0_to_24(fields, field_counts,colormap=True):
     ax.set_title("", fontsize=16, weight='bold')
     # Plot the galactic plane
     plot_galactic_plane(ax)
-    # Shift RA values to the range [0, 2π] (0 to 24 hours)
-    fields['RA_min_rad'] = fields['RA_min_rad'] % (2 * np.pi)
-    fields['RA_max_rad'] = fields['RA_max_rad'] % (2 * np.pi)
-    
+
     # Normalize the field counts for the color map
     if colormap:
         norm = Normalize(vmin=field_counts['count'].min(), vmax=10)#field_counts['count'].max())
         cmap = plt.cm.nipy_spectral  # Use a vibrant colormap
         sm = ScalarMappable(norm=norm, cmap=cmap)
     
-    field_size = np.sqrt(30) * u.deg  # 30 arcmin = 0.5°, so half-size is 0.25°
+    # field_size = np.sqrt(30) * u.deg  # 30 arcmin = 0.5°, so half-size is 0.25°
     for _, row in fields.iterrows():
-        # field = row.ID
-        # vertices = [
-        #     (row.RA_min_rad, row.Dec_min_rad),
-        #     (row.RA_min_rad, row.Dec_max_rad),
-        #     (row.RA_max_rad, row.Dec_max_rad),
-        #     (row.RA_max_rad, row.Dec_min_rad),
-        # ]
-        # vertices = [(-v[0] + np.pi, v[1]) for v in vertices]  # Shift RA to [-π, π] for Mollweide projection
-        # # vertices = [(((-ra + np.pi + np.pi) % (2 * np.pi)) - np.pi, dec) for ra, dec in vertices]
+        RA_max = row.RA_max
+        RA_min = row.RA_min
+        Dec_min = row.Dec_min
+        Dec_max = row.Dec_max
         
-        # # Get count for the field and determine its color
-        # if colormap:
-        #     count = field_counts[field_counts['field'] == int(field)]['count'].values[0]
-        #     color = cmap(norm(count))
-        # else:
-        #     color = "lightblue"
-        
-        # poly = Polygon(vertices, closed=True, edgecolor="black", facecolor=color, lw=0.5)
-        # ax.add_patch(poly)
         field = row.ID
         corners = [
-            (row.RA_min, row.Dec_min),
-            (row.RA_min, row.Dec_max),
-            (row.RA_max, row.Dec_max),
-            (row.RA_max, row.Dec_min),
+            (RA_min, Dec_min),
+            (RA_min, Dec_max),
+            (RA_max, Dec_max),
+            (RA_max, Dec_min),
         ]
 
         # Convert to radians and Mollweide-safe coordinates
@@ -121,8 +108,22 @@ def plot_fields_with_ra_0_to_24(fields, field_counts,colormap=True):
         for ra_deg, dec_deg in corners:
             ra_rad = np.deg2rad(ra_deg)
             ra_rad = ((-ra_rad + np.pi + np.pi) % (2 * np.pi)) - np.pi  # RA wrapping
+            if np.abs(ra_rad) == np.pi:
+                if ra_rad < 0:
+                    ra_rad += 0.01
+                else:
+                    ra_rad -= 0.01
             dec_rad = np.deg2rad(dec_deg)
             vertices.append((ra_rad, dec_rad))
+
+        # Check for long RA span and fix it in-place
+        ra_vals = [ra for ra, _ in vertices]
+        ra_span = np.ptp(ra_vals)
+        if np.rad2deg(ra_span) > 180:
+            logger.warning(f"Field {field} has large RA span ({np.rad2deg(ra_span):.1f}°): {vertices}")
+            # Fix: shift negative RA values by +2π and rewrap to [-π, π]
+            vertices = [(((ra + 2 * np.pi) if ra < 0 else ra), dec) for ra, dec in vertices]
+            # vertices = [(((ra + np.pi) % (2 * np.pi)) - np.pi, dec) for ra, dec in vertices]
 
         if colormap:
             count = field_counts[field_counts['field'] == int(field)]['count'].values[0]
