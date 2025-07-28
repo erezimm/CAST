@@ -7,7 +7,6 @@ data/
 erez_tom/
 static/
 tmp/
-tom_targets/
 tests.ipynb
 manage.py
 CAST.log
