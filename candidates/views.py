@@ -395,12 +395,16 @@ def send_tns_report_view(request, candidate_id):
     """
     Generates and sends a TNS report for a candidate.
     """
+    comment = request.POST.get('comment', '').strip()
     candidate = get_object_or_404(Candidate, id=candidate_id)
     filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
 
     try:
         user = request.user
-        send_tns_report(candidate,user.first_name,user.last_name)
+        if comment:
+            send_tns_report(candidate,user.first_name,user.last_name,comment)
+        else:
+            send_tns_report(candidate,user.first_name,user.last_name)
         # Add a success message with the candidate name being a link to the candidate detail page
         messages.success(
     request,
@@ -467,6 +471,7 @@ def tns_report_view(request, candidate_id):
         'end_datetime': end_datetime,
         'page': page,
         'items_per_page': items_per_page,
+        'TNS_TEST': settings.TNS_TEST,
     })
 
 def update_cutouts_view(request, candidate_id):

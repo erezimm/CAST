@@ -1,17 +1,22 @@
 {% extends 'tom_common/base.html' %}
 {% block title %}TNS Report for {{ candidate.name }}{% endblock %}
-{% block content %}
 
+{% block content %}
 <div class="container mt-4">
+    {% if TNS_TEST %}
+    <h1>TNS Test Report for {{ candidate.name }}</h1>
+    {% else %}
     <h1>TNS Report for {{ candidate.name }}</h1>
-    <h4>Pleas check the details below before sending the report</h4>
+    {% endif %}
+    <h4>Please check the details below before sending the report</h4>
     <hr>
+
     <!-- Report Details -->
     <h4>Report Details</h4>
     <table class="table table-bordered">
         <tbody>
             <tr>
-                <th>Coordinates (RA, Dec) </th>
+                <th>Coordinates (RA, Dec)</th>
                 <td>{{ report_details.RA }}, {{ report_details.DEC }}</td>
             </tr>
             <tr>
@@ -34,17 +39,43 @@
                 <th>Reporters</th>
                 <td>{{ report_details.reporters }}</td>
             </tr>
+            <tr>
+                <th>Comment</th>
+                <td>
+                    <textarea id="tns-comment" name="comment" rows="4" cols="50"
+                            placeholder="Enter any remarks to the report (if applicable)"></textarea>
+                </td>
+            </tr>
         </tbody>
     </table>
+
     <!-- Back and Send Report Buttons -->
     <div class="d-flex justify-content-between mb-4">
         <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}{% if page %}&page={{ page }}{% endif %}{% if items_per_page %}&items_per_page={{ items_per_page }}{% endif %}#candidate-{{ candidate.id }}"
-        class="btn btn-danger"> Back to Candidate List</a>
-        <form method="POST" action="{% url 'candidates:send_tns_report' candidate.id %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}">
+           class="btn btn-danger">Back to Candidate List</a>
+
+        <form id="send-report-form"
+              method="POST"
+              action="{% url 'candidates:send_tns_report' candidate.id %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}">
             {% csrf_token %}
+            <input type="hidden" name="comment" id="hidden-comment-input">
             <button type="submit" class="btn btn-success">Send Report</button>
         </form>
     </div>
 </div>
 
+<!-- Script to inject comment into hidden input -->
+<script>
+document.getElementById('send-report-form').addEventListener('submit', function(event) {
+    const commentBox = document.getElementById('tns-comment');
+    const hiddenInput = document.getElementById('hidden-comment-input');
+    const commentValue = commentBox.value.trim();
+
+    if (commentValue) {
+        hiddenInput.value = commentValue;
+    } else {
+        hiddenInput.value = '';
+    }
+});
+</script>
 {% endblock %}
