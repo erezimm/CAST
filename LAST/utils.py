@@ -11,7 +11,6 @@ from matplotlib.patches import Polygon
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
 from astropy.coordinates import SkyCoord, Angle
-from astropy.coordinates.angle_utilities import angular_separation
 import argparse
 import os
 import matplotlib
