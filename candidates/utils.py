@@ -709,6 +709,7 @@ def transform_json_tns(input_data):
                 "reporter": input_data["at_report"]["reporter"],
                 "discovery_datetime": convert_datetime_tns(input_data["at_report"]["discovery_datetime"][0]),
                 "at_type": input_data["at_report"]["at_type"],
+                "remarks": input_data["at_report"]["remarks"],
                 "non_detection": {
                     "obsdate": convert_datetime_tns(input_data["at_report"]["non_detection"]["obsdate"][0]),
                     "limiting_flux": input_data["at_report"]["non_detection"]["flux"],
@@ -776,7 +777,7 @@ def send_tns_reply(id_report):
     return response
 
 
-def tns_report_details(candidate,first_name,last_name):
+def tns_report_details(candidate,first_name,last_name,comment=None):
     """
     Get the TNS report details for a candidate before sending the details
     :param candidate: Candidate instance
@@ -799,10 +800,14 @@ def tns_report_details(candidate,first_name,last_name):
         reporters = reporters.replace(f"{first_name[0]}. {last_name} (WIS), ","")
         reporters = f"{first_name[0]}. {last_name} (WIS), {reporters}"
     data["at_report"]["reporter"] = reporters
+    if comment:
+        data["at_report"]["remarks"] = comment
+    else:
+        data["at_report"]["remarks"] = ""
     return data
 
 
-def send_tns_report(candidate,first_name,last_name):
+def send_tns_report(candidate,first_name,last_name,comment=None):
     """
     Generate a TNS report based on the original json file
     :param candidate: Candidate instance
@@ -815,7 +820,7 @@ def send_tns_report(candidate,first_name,last_name):
     # file = dataproduct.datafile
     # file_content = file.read().decode('utf-8')  # Decode to string
     # data = json.loads(file_content)  # Parse the JSON content
-    data = tns_report_details(candidate,first_name,last_name)
+    data = tns_report_details(candidate,first_name,last_name,comment=comment)
     transformed_json = json.dumps(transform_json_tns(data))
     report = json.loads(StringIO(transformed_json).read(), object_pairs_hook = OrderedDict)
     response = send_json_tns_report(report)
@@ -859,6 +864,23 @@ def send_tns_report(candidate,first_name,last_name):
         print(f"Error saving candidate: {e}")
     print(candidate.tns_name)
 
+def set_reported_by_LAST(candidate_id):
+    """
+    Set the candidate as reported by LAST and save the reporter's name.
+    :param candidate_id: The ID of the candidate.
+    :param first_name: The first name of the reporter.
+    :param last_name: The last name of the reporter.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    candidate.reported_by_LAST = True
+    try:
+        if candidate.tns_name:  
+            candidate.save(check_tns=False)  # Avoid TNS check if not needed
+        else:
+            candidate.save()
+        logger.info(f"Candidate {candidate_id} marked as reported by LAST.")
+    except Exception as e:
+        logger.error(f"Error saving candidate: {e}")
 
 def get_horizons_data(candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)

@@ -1,11 +1,12 @@
 from .forms import FileUploadForm
 from .utils import process_json_file, add_candidate_as_target, check_target_exists_for_candidate,\
                    send_tns_report,update_candidate_cutouts,tns_report_details,\
-                   get_horizons_data
+                   get_horizons_data, set_reported_by_LAST
 from .models import Candidate,CandidateDataProduct,CandidateAlert
 from .photometry_utils import generate_photometry_graph, get_atlas_fp, get_ztf_fp
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.utils.safestring import mark_safe
 from django.urls import reverse
 from django.core.paginator import Paginator
 from datetime import timedelta
@@ -17,6 +18,8 @@ from collections import defaultdict
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 from django.conf import settings
+from django.db.models import Q
+
 
 def upload_file_view(request):
     """
@@ -101,6 +104,39 @@ def refresh_atlas_view(request, candidate_id):
 
     return redirect(redirect_url)
 
+def set_reported_by_last_view(request, candidate_id):
+    """
+    Set the reported_by_LAST field for a candidate.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    try:
+        set_reported_by_LAST(candidate_id)
+        messages.success(request, f"Candidate {candidate.name} has been set as reported by LAST.")
+    except Exception as e:
+        messages.error(request, f"Failed to set reported_by_LAST for {candidate.name}: {e}")
+
+    # Get the filter parameter from the request
+    filter_value = request.GET.get('filter', 'all')  # Default to 'all' if no filter is provided
+    # Redirect to the candidate list with the current filter, start date, end date, and anchor
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
+    
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
+
+    # Add anchor for the specific candidate
+    redirect_url += f"#candidate-{candidate.id}"
+
+    return redirect(redirect_url)
 
 def refresh_ztf_view(request, candidate_id):
     """
@@ -153,11 +189,12 @@ def candidate_list_view(request):
     elif filter_value == 'bogus':
         candidates = Candidate.objects.filter(real_bogus=False).order_by('-created_at')
     elif filter_value == 'neither':
-        candidates = Candidate.objects.filter(real_bogus__isnull=True).order_by('-created_at')
+        candidates = Candidate.objects.filter(real_bogus__isnull=True, classification__isnull=True).order_by('-created_at')
     elif filter_value == 'tns_reported':
         candidates = Candidate.objects.filter(reported_by_LAST=True).order_by('-created_at')
     elif filter_value == 'tns_not_reported':
-        candidates = Candidate.objects.filter(reported_by_LAST=False).order_by('-created_at')
+        # Filter candidates that are not reported by LAST and not bogus but could be real and has not classification
+        candidates = Candidate.objects.filter(reported_by_LAST=False, classification__isnull=True).filter(Q(real_bogus__isnull=True) | Q(real_bogus=True)).order_by('-created_at')
     else:  # 'all'
         candidates = Candidate.objects.all().order_by('-created_at')
 
@@ -358,13 +395,22 @@ def send_tns_report_view(request, candidate_id):
     """
     Generates and sends a TNS report for a candidate.
     """
+    comment = request.POST.get('comment', '').strip()
     candidate = get_object_or_404(Candidate, id=candidate_id)
     filter_value = request.GET.get('filter', 'all')  # Get the current filter from the query parameters
 
     try:
         user = request.user
-        send_tns_report(candidate,user.first_name,user.last_name)
-        messages.success(request, f"TNS report successfully sent for {candidate.name}.")
+        if comment:
+            send_tns_report(candidate,user.first_name,user.last_name,comment)
+        else:
+            send_tns_report(candidate,user.first_name,user.last_name)
+        # Add a success message with the candidate name being a link to the candidate detail page
+        messages.success(
+    request,
+    mark_safe(f"TNS report successfully sent for <a href='/candidates/{candidate.pk}/'>{candidate.name}</a>.")
+)
+
     except Exception as e:
         messages.error(request, f"Failed to send TNS report for {candidate.name}: {e}")
 
@@ -425,6 +471,7 @@ def tns_report_view(request, candidate_id):
         'end_datetime': end_datetime,
         'page': page,
         'items_per_page': items_per_page,
+        'TNS_TEST': settings.TNS_TEST,
     })
 
 def update_cutouts_view(request, candidate_id):
