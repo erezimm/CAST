@@ -64,7 +64,7 @@ Once your TOM base project is running, install the `candidates` application:
    
    In the file `candidates/models.py`, find and replace `www.wis-tns.org` with `sandbox.wis-tns.org` (2 occurences)
 
-3. **Add LAST_DB for Observation page**:
+3. **Add LAST_DB for Observation page and FORCED_PHOTOMETRY_DB **:
    ```python
    LAST_DB = {
     'host': '',  # host of last0
@@ -72,6 +72,14 @@ Once your TOM base project is running, install the `candidates` application:
     'username': '', 
     'password': ''
     },
+
+   FORCED_PHOTOMETRY_DB = {
+      'host': '', # host of euclid
+      'port': '',
+      'username': '', 
+      'password': '',
+      'CAST_user_id': , 
+   }
   ```
 
 4. **For Observation page - make sure you set both STATIC dirs to the same path**:

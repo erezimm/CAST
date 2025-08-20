@@ -14,11 +14,17 @@ def force_photometry_view(request):
         try:
             ra = float(request.POST.get('ra'))
             dec = float(request.POST.get('dec'))
+            fieldid = request.POST.get('fieldid')
+            cropid = request.POST.get('cropid')
+            mountnum = request.POST.get('mountnum')
+            camnum = request.POST.get('camnum')
             days = request.POST.get('days')
             max_results = request.POST.get('max_results')
             use_existing_ref = 'use_existing_ref' in request.POST
+            resub = 'resub' in request.POST
             start_date_str = request.POST.get('start_date')
             end_date_str = request.POST.get('end_date')
+            timeout = int(request.POST.get('timeout', 30))
 
             if start_date_str and end_date_str:
                 jd_start = Time(start_date_str, format='iso').jd
@@ -31,7 +37,14 @@ def force_photometry_view(request):
                 jd_start = jd_end - int(days)
 
             try:
-                detections, nondetections = get_last_fp(ra, dec, jd_start, jd_end, max_results, use_existing_ref)
+                fieldid = fieldid if fieldid else "''"
+                cropid = int(cropid) if cropid else 0
+                mountnum = int(mountnum) if mountnum else 0
+                camnum = int(camnum) if camnum else 0
+                detections, nondetections = get_last_fp(ra, dec, jd_start, jd_end, 
+                                                        fieldid, cropid, mountnum, camnum,
+                                                        max_results, use_existing_ref, resub,
+                                                        timeout)
             except Exception as e:
                 context['error'] = e
                 return render(request, 'forced_photometry.html', context)
