@@ -1,9 +1,14 @@
+# Third-party imports
+import pandas as pd
 import plotly.graph_objs as go
 import plotly.offline as opy
-from django.shortcuts import render
-
 from astropy.time import Time
 
+# Django imports
+from django.shortcuts import render
+from django.http import HttpResponse
+
+# Local imports
 from .utils import get_last_fp
 
 def force_photometry_view(request):
@@ -41,17 +46,21 @@ def force_photometry_view(request):
                 cropid = int(cropid) if cropid else 0
                 mountnum = int(mountnum) if mountnum else 0
                 camnum = int(camnum) if camnum else 0
-                detections, nondetections = get_last_fp(ra, dec, jd_start, jd_end, 
-                                                        fieldid, cropid, mountnum, camnum,
-                                                        max_results, use_existing_ref, resub,
-                                                        timeout)
+                detections, nondetections, fp_results = get_last_fp(ra, dec, jd_start, jd_end, 
+                                                                    fieldid, cropid, mountnum, camnum,
+                                                                    max_results, use_existing_ref, resub,
+                                                                    timeout)
             except Exception as e:
                 context['error'] = e
                 return render(request, 'forced_photometry.html', context)
 
-            if detections is None or nondetections is None:
+            if fp_results is None:
                 context['error'] = "No data returned for the given RA, DEC, and days."
                 return render(request, 'forced_photometry.html', context)
+            
+            # Save the results in the context for rendering
+            request.session['fp_results'] = fp_results.to_dict(orient='records')  # store as JSON-serializable
+            context['csv_available'] = True
 
             # non detection - use limmag for lim
             fig = go.Figure()
@@ -80,3 +89,14 @@ def force_photometry_view(request):
             context['error'] = f"Error: {e}"
 
     return render(request, 'forced_photometry.html', context)
+
+def download_fp_csv(request):
+    data = request.session.get('fp_results')
+    if not data:
+        return HttpResponse("No results to download.", status=400)
+
+    df = pd.DataFrame(data)
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="forced_photometry.csv"'
+    df.to_csv(path_or_buf=response, index=False)
+    return response

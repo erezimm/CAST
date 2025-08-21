@@ -74,7 +74,7 @@ def get_last_fp(ra, dec, jd_start, jd_end,
                 break
             elif status == 2:  # Failed
                 logger.error("Status 2, no results.")
-                return None, None
+                return None, None, None
         
         time.sleep(retry_delay)
 
@@ -87,12 +87,12 @@ def get_last_fp(ra, dec, jd_start, jd_end,
     fp_results = pd.DataFrame(query_result.result_rows, columns=query_result.column_names)
     if fp_results.empty:
         logger.warning("No results found for request_id: %s", request_id)
-        return None, None
+        return None, None, None
     
     detections_mask = np.logical_and(fp_results['sn'] > 3, fp_results['s'] > 3)
     detections = fp_results[detections_mask]
     nondetections = fp_results[~detections_mask]
     
-    return detections, nondetections
+    return detections, nondetections, fp_results
 
 

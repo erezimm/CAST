@@ -105,10 +105,17 @@
     <div class="alert alert-danger" id="error-message">{{ error }}</div>
   {% endif %}
   
+  {% if csv_available %}
+  <a href="{% url 'FP:download_fp_csv' %}" class="btn btn-success mt-3">
+    Download as CSV
+  </a>
+  {% endif %}
+  
   <!-- Plot Output -->
   <div id="plot-container" class="mt-4">
     {{ plot_div|safe }}
   </div>
+
 </div>
 <script>
   const form = document.querySelector('#photometry-form');
