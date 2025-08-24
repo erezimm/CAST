@@ -86,6 +86,16 @@
       </div>
 
       <div class="form-group col-md-3">
+        <label for="loadnew" class="d-flex align-items-center">
+          Load New &nbsp   
+          <span class="text-muted ms-2" style="cursor: help;" data-toggle="tooltip" title="If checked, loads the new image for the analysis (in addition to the diff image).">ⓘ</span>
+        </label>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="loadnew" name="loadnew">
+        </div>
+      </div>
+
+      <div class="form-group col-md-3">
         <label for="timeout">Timeout (seconds)</label>
         <input type="number" class="form-control" id="timeout" name="timeout" value="30">
       </div>
@@ -110,7 +120,7 @@
     Download as CSV
   </a>
   {% endif %}
-  
+
   <!-- Plot Output -->
   <div id="plot-container" class="mt-4">
     {{ plot_div|safe }}

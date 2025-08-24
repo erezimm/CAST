@@ -27,6 +27,7 @@ def force_photometry_view(request):
             max_results = request.POST.get('max_results')
             use_existing_ref = 'use_existing_ref' in request.POST
             resub = 'resub' in request.POST
+            loadnew = 'loadnew' in request.POST
             start_date_str = request.POST.get('start_date')
             end_date_str = request.POST.get('end_date')
             timeout = int(request.POST.get('timeout', 30))
@@ -49,7 +50,7 @@ def force_photometry_view(request):
                 detections, nondetections, fp_results = get_last_fp(ra, dec, jd_start, jd_end, 
                                                                     fieldid, cropid, mountnum, camnum,
                                                                     max_results, use_existing_ref, resub,
-                                                                    timeout)
+                                                                    loadnew, timeout)
             except Exception as e:
                 context['error'] = e
                 return render(request, 'forced_photometry.html', context)

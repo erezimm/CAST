@@ -35,7 +35,7 @@ def get_unique_request_id():
 def get_last_fp(ra, dec, jd_start, jd_end, 
                 fieldid="''", cropid=0, mountnum=0, camnum=0,
                 max_results=N_MAX_RESULTS, use_existing_ref=True, resub=False,
-                timeout=30):
+                loadnew=False, timeout=30):
     """
     Fetch data from the ClickHouse database based on RA, DEC, and days.
     """
@@ -45,8 +45,8 @@ def get_last_fp(ra, dec, jd_start, jd_end,
     user_id =  settings.FORCED_PHOTOMETRY_DB['CAST_user_id']
 
     query = f""" INSERT INTO last.forcedphot_requests 
-    (request_id, user_id, ra, dec, jd_start, jd_end, fieldid, cropid, mountnum, camnum, n_epoch_max, useexistingref, resub) 
-    VALUES  ( {request_id}, {user_id}, {ra}, {dec}, {jd_start}, {jd_end}, {fieldid}, {cropid}, {mountnum}, {camnum}, {max_results}, {use_existing_ref} , {resub})
+    (request_id, user_id, ra, dec, jd_start, jd_end, fieldid, cropid, mountnum, camnum, n_epoch_max, useexistingref, resub, loadnew) 
+    VALUES  ( {request_id}, {user_id}, {ra}, {dec}, {jd_start}, {jd_end}, {fieldid}, {cropid}, {mountnum}, {camnum}, {max_results}, {use_existing_ref} , {resub}, {loadnew})
     """
     logger.info("Inserting forcedphot request: %s", query)
     client.query(query)
@@ -75,6 +75,9 @@ def get_last_fp(ra, dec, jd_start, jd_end,
             elif status == 2:  # Failed
                 logger.error("Status 2, no results.")
                 return None, None, None
+            elif status == 10:  # Failed
+                logger.error("Status 10, error processing query. ")
+                raise RuntimeError("Error processing query. Data might be missing, try with different parameters.")
         
         time.sleep(retry_delay)
 
