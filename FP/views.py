@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.http import HttpResponse
 
 # Local imports
-from .utils import get_last_fp
+from .utils import get_last_fp, get_results_from_request_id, get_query_status
 
 def force_photometry_view(request):
     context = {}
@@ -17,43 +17,64 @@ def force_photometry_view(request):
     if request.method == 'POST':
 
         try:
-            ra = float(request.POST.get('ra'))
-            dec = float(request.POST.get('dec'))
-            fieldid = request.POST.get('fieldid')
-            cropid = request.POST.get('cropid')
-            mountnum = request.POST.get('mountnum')
-            camnum = request.POST.get('camnum')
-            days = request.POST.get('days')
-            max_results = request.POST.get('max_results')
-            use_existing_ref = 'use_existing_ref' in request.POST
-            resub = 'resub' in request.POST
-            loadnew = 'loadnew' in request.POST
-            start_date_str = request.POST.get('start_date')
-            end_date_str = request.POST.get('end_date')
-            timeout = int(request.POST.get('timeout', 30))
 
-            if start_date_str and end_date_str:
-                jd_start = Time(start_date_str, format='iso').jd
-                jd_end = Time(end_date_str, format='iso').jd
-            else:
-                if not days:
-                    context['error'] = 'You have to either specify a number of days or a start and end date.'
+            action = request.POST.get('action')
+
+            if action == 'check':
+                request_id = request.POST.get('requestid')
+                status = get_query_status(request_id)
+                if status is None:
+                    context['error'] = f'No such request ID: {request_id}'
                     return render(request, 'forced_photometry.html', context)
-                jd_end = Time.now().jd
-                jd_start = jd_end - int(days)
+                if status == 0:  # Pending
+                    context['error'] = f'Request {request_id} is still processing.'
+                    return render(request, 'forced_photometry.html', context)
+                elif status == 1:  # OK
+                    detections, nondetections, fp_results = get_results_from_request_id(request_id)
+                elif status == 2:  # Failed
+                    fp_results = None
+                elif status == 10:  # Failed
+                    raise RuntimeError("Error processing query. Data might be missing, try with different parameters.")
+                
 
-            try:
-                fieldid = fieldid if fieldid else "''"
-                cropid = int(cropid) if cropid else 0
-                mountnum = int(mountnum) if mountnum else 0
-                camnum = int(camnum) if camnum else 0
-                detections, nondetections, fp_results = get_last_fp(ra, dec, jd_start, jd_end, 
-                                                                    fieldid, cropid, mountnum, camnum,
-                                                                    max_results, use_existing_ref, resub,
-                                                                    loadnew, timeout)
-            except Exception as e:
-                context['error'] = e
-                return render(request, 'forced_photometry.html', context)
+            elif action == 'fetch':
+                ra = float(request.POST.get('ra'))
+                dec = float(request.POST.get('dec'))
+                fieldid = request.POST.get('fieldid')
+                cropid = request.POST.get('cropid')
+                mountnum = request.POST.get('mountnum')
+                camnum = request.POST.get('camnum')
+                days = request.POST.get('days')
+                max_results = request.POST.get('max_results')
+                use_existing_ref = 'use_existing_ref' in request.POST
+                resub = 'resub' in request.POST
+                loadnew = 'loadnew' in request.POST
+                start_date_str = request.POST.get('start_date')
+                end_date_str = request.POST.get('end_date')
+                timeout = int(request.POST.get('timeout', 30))
+
+                if start_date_str and end_date_str:
+                    jd_start = Time(start_date_str, format='iso').jd
+                    jd_end = Time(end_date_str, format='iso').jd
+                else:
+                    if not days:
+                        context['error'] = 'You have to either specify a number of days or a start and end date.'
+                        return render(request, 'forced_photometry.html', context)
+                    jd_end = Time.now().jd
+                    jd_start = jd_end - int(days)
+
+                try:
+                    fieldid = fieldid if fieldid else "''"
+                    cropid = int(cropid) if cropid else 0
+                    mountnum = int(mountnum) if mountnum else 0
+                    camnum = int(camnum) if camnum else 0
+                    detections, nondetections, fp_results = get_last_fp(ra, dec, jd_start, jd_end, 
+                                                                        fieldid, cropid, mountnum, camnum,
+                                                                        max_results, use_existing_ref, resub,
+                                                                        loadnew, timeout)
+                except Exception as e:
+                    context['error'] = e
+                    return render(request, 'forced_photometry.html', context)
 
             if fp_results is None:
                 context['error'] = "No data returned for the given RA, DEC, and days."
@@ -79,7 +100,11 @@ def force_photometry_view(request):
             marker=dict(symbol='triangle-down', size=8),
             yaxis="y"
             )
-            layout = go.Layout(title=f'LAST photometry from ra={ra}, dec={dec}',
+            if action == 'fetch':
+                plot_title = f'LAST photometry from ra={ra}, dec={dec}'
+            else:   
+                plot_title = f'LAST photometry from request_id={request_id}'
+            layout = go.Layout(title=plot_title,
                        xaxis=dict(title='Days ago', autorange='reversed'),
                        yaxis=dict(title='Apparent Magnitude', autorange="reversed"))
 

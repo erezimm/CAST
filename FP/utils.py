@@ -58,30 +58,44 @@ def get_last_fp(ra, dec, jd_start, jd_end,
         if time.time() > timeout_time:
             raise TimeoutError(f"Timeout from DB. Try again later. Request ID: {request_id}")
         
-        query = f""" select request_id, user_id, status, ra, dec, jd_start, jd_end, fieldid, mountnum, camnum, cropid  
-                     from last.forcedphot_requests
-                     where request_id = {request_id} """
-
-        query_result = client.query(query)
-        df_tables = pd.DataFrame(query_result.result_rows, columns=query_result.column_names)
-        
-        if not df_tables.empty:
-            status = df_tables['status'][0]
-            if status == 0:  # Pending
-                logger.info(f"Request ID {request_id} is still pending...")
-            elif status == 1:  # OK
-                logger.info("Request processed successfully.")
-                break
-            elif status == 2:  # Failed
-                logger.error("Status 2, no results.")
-                return None, None, None
-            elif status == 10:  # Failed
-                logger.error("Status 10, error processing query. ")
-                raise RuntimeError("Error processing query. Data might be missing, try with different parameters.")
+        status = get_query_status(request_id, client=client)
+        if status == 0:  # Pending
+            logger.info(f"Request ID {request_id} is still pending...")
+        elif status == 1:  # OK
+            logger.info("Request processed successfully.")
+            break
+        elif status == 2:  # Failed
+            logger.error("Status 2, no results.")
+            return None, None, None
+        elif status == 10:  # Failed
+            logger.error("Status 10, error processing query. ")
+            raise RuntimeError("Error processing query. Data might be missing, try with different parameters.")
         
         time.sleep(retry_delay)
 
     # Fetch the results from the forced photometry output table     
+    detections, nondetections, fp_results = get_results_from_request_id(request_id, client=client)
+
+    return detections, nondetections, fp_results
+
+
+def get_query_status(request_id, client=None):
+    
+    client = client or connect_to_clickhouse()
+    query = f""" select request_id, user_id, status, ra, dec, jd_start, jd_end, fieldid, mountnum, camnum, cropid  
+                from last.forcedphot_requests
+                where request_id = {request_id} """
+    query_result = client.query(query)
+    df_tables = pd.DataFrame(query_result.result_rows, columns=query_result.column_names)
+
+    if not df_tables.empty:
+        # If empty, returns None
+        return df_tables['status'][0]
+
+
+def get_results_from_request_id(request_id, client=None):
+   
+    client = client or connect_to_clickhouse()
     query = f""" select * from last.forcedphotsub_output
     where request_id = {request_id}
                 """
@@ -97,5 +111,4 @@ def get_last_fp(ra, dec, jd_start, jd_end,
     nondetections = fp_results[~detections_mask]
     
     return detections, nondetections, fp_results
-
 
