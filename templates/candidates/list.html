@@ -484,23 +484,37 @@
     });
 </script>
 <script>
-    // Copy link to row functionality
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll('.copy-link-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const candidateId = btn.getAttribute('data-id');
                 const url = `${window.location.origin}${window.location.pathname}#candidate-${candidateId}`;
-                
-                navigator.clipboard.writeText(url).then(function () {
-                    // Show a tooltip or temporary confirmation
-                    btn.setAttribute('title', 'Link copied!');
+    
+                function showTooltip(text) {
+                    btn.setAttribute('data-original-title', text); // for Bootstrap tooltip
                     $(btn).tooltip('show');
                     setTimeout(() => {
-                        btn.setAttribute('title', 'Copy link to this row');
+                        $(btn).tooltip('hide')
+                            .attr('data-original-title', 'Copy link to this row');
                     }, 1000);
-                });
+                }
+    
+                const textarea = document.createElement("textarea");
+                textarea.value = url;
+                textarea.style.position = "fixed"; // prevent scrolling
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    showTooltip(successful ? 'Link copied!' : 'Failed to copy');
+                } catch (err) {
+                    showTooltip('Failed to copy');
+                }
+                document.body.removeChild(textarea);
             });
         });
     });
-</script>
+    </script>
 {% endblock %}>
