@@ -3,6 +3,7 @@
 {% block content %}
 
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <div class="container-fluid mt-16">
     <h1 class="mb-16">Candidate List</h1>
 
@@ -112,6 +113,12 @@
                             <a href="{% url 'candidates:candidate_detail' item.candidate.id %}?filter_value={{ filter_value|urlencode }}&start_datetime={{ start_datetime|urlencode }}&end_datetime={{ end_datetime|urlencode }}">
                                 {{ item.candidate.name }}
                             </a>
+                            <button class="btn btn-link p-0 ml-2 copy-link-btn" 
+                                    data-toggle="tooltip" 
+                                    title="Copy link to this row" 
+                                    data-id="{{ item.candidate.id }}">
+                                <i class="fas fa-link"></i>
+                            </button>
                         </p>
                         <p>{% if item.candidate.tns_name %}
                             <b>IAU name:</b>
@@ -472,6 +479,26 @@
     
                 // Show loading state
                 button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading…';
+            });
+        });
+    });
+</script>
+<script>
+    // Copy link to row functionality
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll('.copy-link-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const candidateId = btn.getAttribute('data-id');
+                const url = `${window.location.origin}${window.location.pathname}#candidate-${candidateId}`;
+                
+                navigator.clipboard.writeText(url).then(function () {
+                    // Show a tooltip or temporary confirmation
+                    btn.setAttribute('title', 'Link copied!');
+                    $(btn).tooltip('show');
+                    setTimeout(() => {
+                        btn.setAttribute('title', 'Copy link to this row');
+                    }, 1000);
+                });
             });
         });
     });
