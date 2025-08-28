@@ -464,7 +464,20 @@
         </nav>
     </div>
 </div>
+
+<style>
+    .highlight-scroll td {
+        animation: rowFlash 3s ease-out;
+    }
+
+    @keyframes rowFlash {
+        0%   { box-shadow: 0 0 10px 3px gold; }
+        100% { box-shadow: none; }
+    }
+</style>
+
 <script>
+    // disable buttons after submit
     document.addEventListener("DOMContentLoaded", function() {
         const forms = document.querySelectorAll("form.refresh-form");
     
@@ -482,17 +495,26 @@
             });
         });
     });
-</script>
-<script>
+
+    // copy link tooltips
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll('.copy-link-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const candidateId = btn.getAttribute('data-id');
                 const url = `${window.location.origin}${window.location.pathname}#candidate-${candidateId}`;
     
-                function showTooltip(text) {
-                    btn.setAttribute('data-original-title', text); // for Bootstrap tooltip
-                    $(btn).tooltip('show');
+                function showTooltip(btn, message) {
+                    // Manually hide existing tooltip
+                    $(btn).tooltip('hide');
+
+                    // Update title attribute *and* internal Bootstrap state
+                    $(btn)
+                        .attr('data-original-title', message) // for Bootstrap
+                        .tooltip('dispose')                  // remove old instance
+                        .tooltip({ trigger: 'manual' })      // reinitialize
+                        .tooltip('show');                    // show updated tooltip
+
+                    // Hide after 1s and reset text
                     setTimeout(() => {
                         $(btn).tooltip('hide')
                             .attr('data-original-title', 'Copy link to this row');
@@ -501,20 +523,37 @@
     
                 const textarea = document.createElement("textarea");
                 textarea.value = url;
-                textarea.style.position = "fixed"; // prevent scrolling
+                textarea.style.position = "fixed";
                 textarea.style.opacity = "0";
                 document.body.appendChild(textarea);
                 textarea.focus();
                 textarea.select();
                 try {
                     const successful = document.execCommand('copy');
-                    showTooltip(successful ? 'Link copied!' : 'Failed to copy');
-                } catch (err) {
-                    showTooltip('Failed to copy');
+                    showTooltip(btn, successful ? 'Link copied!' : 'Failed to copy');
+                } catch {
+                    showTooltip(btn, 'Failed to copy');
                 }
                 document.body.removeChild(textarea);
             });
         });
     });
-    </script>
+    $(function () {
+        $('[data-toggle="tooltip"]').tooltip({ trigger: 'manual' });
+    });
+
+    // highlight row
+    document.addEventListener("DOMContentLoaded", function () {
+        const hash = window.location.hash;
+        if (hash.startsWith("#candidate-")) {
+            const row = document.querySelector(hash);
+            if (row) {
+                row.classList.add("highlight-scroll");
+                setTimeout(() => {
+                    row.classList.remove("highlight-scroll");
+                }, 2000);
+            }
+        }
+    });
+</script>
 {% endblock %}>
