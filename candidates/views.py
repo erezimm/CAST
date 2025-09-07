@@ -536,17 +536,20 @@ def horizons_view(request, candidate_id):
     candidate = get_object_or_404(Candidate, id=candidate_id)
     try: 
         data = get_horizons_data(candidate_id)
-        results = [
-        {
-            "object_name": row[0],
-            "dist_norm": row[5],
-            "visual_mag": row[6],
-            "ra_rate": row[7],
-            "dec_rate": row[8],
-        }
-        for row in data["data_second_pass"]
-    ]
-        results = sorted(results, key=lambda x: float(x["dist_norm"]))
+        if data['n_second_pass'] > 0:
+            results = [
+            {
+                "object_name": row[0],
+                "dist_norm": row[5],
+                "visual_mag": row[6],
+                "ra_rate": row[7],
+                "dec_rate": row[8],
+            }
+            for row in data["data_second_pass"]
+        ]
+            results = sorted(results, key=lambda x: float(x["dist_norm"]))
+        else:
+            results = []
     except Exception as e:
         messages.error(request, f"Failed to get data from Horizons: {e}")
         return redirect('candidates:list')
