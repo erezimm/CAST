@@ -30,8 +30,11 @@ def observed_fields_plot_view(request, night=None):
     except Exception as e:
         raise Http404(f"Failed to generate plot: {str(e)}")
 
+    night_date = datetime.strptime(night, '%Y-%m-%d').date()
     context = {
         'plot_path': f"{settings.STATIC_ROOT}/LAST/plots/{filename}",
         'night': night,
+        'prev_night': (night_date - timedelta(days=1)).isoformat(),
+        'next_night': (night_date + timedelta(days=1)).isoformat(),
     }
     return render(request, 'observed_fields_plot.html', context)

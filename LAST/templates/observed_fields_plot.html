@@ -15,7 +15,20 @@
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">Go</button>
-            </div>
+        </div>
+        </div>
+               <!-- Navigation Arrows -->
+               <div class="row justify-content-center mb-3">
+                <div class="col-auto">
+                    <a href="{% url 'LAST:observed-fields' %}?night={{ prev_night }}" class="btn btn-outline-secondary">
+                        ← Previous
+                    </a>
+                </div>
+                <div class="col-auto">
+                    <a href="{% url 'LAST:observed-fields' %}?night={{ next_night }}" class="btn btn-outline-secondary">
+                        Next →
+                    </a>
+                </div>
         </div>
     </form>
 
