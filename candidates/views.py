@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 from django.core.paginator import Paginator
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.utils.timezone import now
 from django.utils.dateparse import parse_datetime
 from django.db.models import Subquery, OuterRef
@@ -198,6 +198,34 @@ def candidate_list_view(request):
     else:  # 'all'
         candidates = Candidate.objects.all().order_by('-created_at')
 
+    max_distance = request.GET.get('max_distance')
+    if max_distance:
+        try:
+            max_distance = float(max_distance)
+            candidates = candidates.filter(dist_Mpc__lte=max_distance)
+        except ValueError:
+            pass  # Ignore invalid input
+
+    fieldid_filter = request.GET.get('fieldid_filter')
+    if fieldid_filter:
+        try:
+            fieldid_filter = int(fieldid_filter)
+            candidates = candidates.filter(alert__fieldid=fieldid_filter)
+        except ValueError:
+            pass  # Ignore invalid input
+
+    ToO_filter = request.GET.get('ToO_filter')
+    if ToO_filter:
+        candidates = candidates.filter(ToO_name__iexact=ToO_filter)
+
+    discovery_date = request.GET.get('discovery_date')
+    if discovery_date:
+        try:
+            # Convert to date/datetime if needed
+            discovery_date = parse_datetime(discovery_date)
+            candidates = candidates.filter(alert__discovery_datetime__gte=discovery_date)
+        except ValueError:
+            pass  # invalid date format, ignore
     # Annotate candidates with the latest alert timestamp
     candidates = candidates.annotate(
         latest_alert_time=Subquery(
@@ -260,6 +288,10 @@ def candidate_list_view(request):
         'filter_value': filter_value, # Pass the current filter to the template
         'start_datetime': start_datetime,
         'end_datetime' : end_datetime,
+        'max_distance': request.GET.get('max_distance', ''),
+        'fieldid_filter': request.GET.get('fieldid_filter', ''),
+        'ToO_filter': request.GET.get('ToO_filter', ''),
+        'discovery_date': discovery_date,
         'candidate_status': candidate_status,
         'candidate_count': candidates.count(),
         'page_obj': page_obj,
