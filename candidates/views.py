@@ -223,7 +223,7 @@ def candidate_list_view(request):
         try:
             # Convert to date/datetime if needed
             discovery_date = parse_datetime(discovery_date)
-            candidates = candidates.filter(alert__discovery_datetime__gte=discovery_date)
+            candidates = candidates.filter(discovery_datetime__gte=discovery_date)
         except ValueError:
             pass  # invalid date format, ignore
     # Annotate candidates with the latest alert timestamp
