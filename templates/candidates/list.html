@@ -251,25 +251,28 @@
                         <div style="margin-top: 10px; display: flex; flex-direction: column; gap;">
                             <!-- Real/Bogus Buttons -->
                             <div style="display: flex; flex-direction: row; gap: 5px;">
-                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="real_bogus" value="real">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-success" {% if item.candidate.real_bogus is True %}disabled{% endif %}>
                                         Real
                                     </button>     
                                 </form>
 
-                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="real_bogus" value="bogus">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-danger" {% if item.candidate.real_bogus is False %}disabled{% endif %}>
                                         Bogus
                                     </button>
                                 </form>
 
-                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="real_bogus" value="null">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-secondary text-white">
                                         Reset
                                     </button>
@@ -287,25 +290,28 @@
                                 <b>Classification:</b>
                             </div>
                             <div style="display: flex; flex-direction: row; gap: 5px;">
-                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="stellar">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'stellar' %}disabled{% endif %}>
                                         Stellar
                                     </button>
                                 </form>
                     
-                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="solar">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'solar' %}disabled{% endif %}>
                                         Solar
                                     </button>
                                 </form>
                     
-                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="agn">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'agn' %}disabled{% endif %}>
                                         AGN
                                     </button>
@@ -314,9 +320,10 @@
                     
                             <!-- Row for Reset Button -->
                             <div style="display: flex; justify-content: margin-top: 2px;">
-                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="null">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-secondary text-white">
                                         Reset Classification
                                     </button>
@@ -332,18 +339,13 @@
                         </a>
                         {% else %}
                         <!-- Blue "Add Target" button -->
-                        <form method="POST" action="{% url 'candidates:add_target' %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:add_target' %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                             <button type="submit" class="btn btn-sm btn-primary">Add Target</button>
                         </form>
                         {% endif %}
-                        <!-- update cutous Button -->
-                        <!-- <form method="POST" action="{% url 'candidates:update_candidate_cutouts' item.candidate.id %}?filter={{ filter_value }}%}" style="display:inline;">
-                            {% csrf_token %}
-                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
-                            <button type="submit" class="btn btn-sm btn-info">Update Cutouts</button>
-                        </form> -->
 
                         <!-- Check Simbad-->
                         <a href="http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=1&Radius=3&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord={{ item.candidate.ra }} {{ item.candidate.dec }}" 
@@ -352,6 +354,7 @@
                         target="_blank">
                          Simbad Lookup
                         </a>
+
                         <!-- Check NED-->
                         <a href="https://ned.ipac.caltech.edu/cgi-bin/nph-objsearch?lon={{ item.candidate.ra }}d&lat={{ item.candidate.dec }}d&radius=2.0&search_type=Near+Position+Search" 
                         class="btn btn-sm btn-secondary text-white" 
@@ -359,6 +362,7 @@
                         target="_blank">
                          NED Lookup
                         </a>
+
                         {% if not item.candidate.tns_name%}
                             <!-- Check TNS-->
                             {% if tns_test %}
@@ -377,18 +381,15 @@
                             </a>
                             {% endif %}
                         {% endif %}
-                        <!-- Check skyserver -->
-                        <!-- <a href="http://skyserver.sdss.org/dr17/en/tools/chart/navi.aspx?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}"
-                        class="btn btn-sm btn-secondary text-white"
-                        target="_blank">
-                            Skyserver
-                        </a> -->
+
                         <!-- Check horizons -->
-                        <form method="POST" action="{% url 'candidates:horizon' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:horizon' item.candidate.id %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                             <button type="submit" class="btn btn-sm btn-secondary text-white">Check Horizons</button>
                         </form>
+                        
                         <!-- Send TNS Report Button -->
                         {% if item.candidate.reported_by_LAST %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Reported to TNS</button>
@@ -397,15 +398,16 @@
                         {% elif item.candidate.classification != None %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Target is {{ item.candidate.classification }}</button>
                         {% else %}
-                        <form method="POST" action="{% url 'candidates:tns_report_details' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:tns_report_details' item.candidate.id %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                             <button type="submit" class="btn btn-sm btn-warning">Send TNS Report</button>
                         </form>
                         {% endif %}
                         
                         <!-- Force Photometry Buttuns -->
-                        <form method="POST" action="{% url 'candidates:refresh_atlas' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+                        <form method="POST" action="{% url 'candidates:refresh_atlas' item.candidate.id %}"
                               style="display: inline-flex; align-items: center; vertical-align: middle;"
                               class="refresh-form">
                             {% csrf_token %}
@@ -413,13 +415,14 @@
                             <div style="display: inline-flex; align-items: center; background-color: #2aa198; border: 1px solid #2aa198; border-radius: 4px; overflow: hidden;">
                                 <input type="number" name="daysago" placeholder="Days ago" min="1" required
                                        class="form-control form-control-sm text-center" style="width: 100px; border: none; border-radius: 0;">
+                                <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-sm text-white"
                                         style="background-color: #2aa198; border: none; border-left: 1px solid white;">
                                     Refresh Atlas
                                 </button>
                             </div>
                         </form>
-                        <form method="POST" action="{% url 'candidates:refresh_ztf' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+                        <form method="POST" action="{% url 'candidates:refresh_ztf' item.candidate.id %}"
                               style="display: inline-flex; align-items: center; vertical-align: middle;"
                               class="refresh-form">
                             {% csrf_token %}
@@ -427,6 +430,7 @@
                             <div style="display: inline-flex; align-items: center; background-color: #e88b8b; border: 1px solid #e88b8b; border-radius: 4px; overflow: hidden;">
                                 <input type="number" name="daysago" placeholder="Days ago" min="1" required
                                        class="form-control form-control-sm text-center" style="width: 100px; border: none; border-radius: 0;">
+                                <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-sm text-white"
                                         style="background-color: #e88b8b; border: none; border-left: 1px solid white;">
                                     Refresh ZTF
@@ -440,7 +444,7 @@
                             </div>
                             <!-- Update Candidate report status for admins only-->
                              {% if not item.candidate.reported_by_LAST %}
-                            <form method="POST" action="{% url 'candidates:set_reported_by_LAST' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                            <form method="POST" action="{% url 'candidates:set_reported_by_LAST' item.candidate.id %}" style="display:inline;">
                                 {% csrf_token %}
                                 <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
                                 <button type="submit" class="btn btn-sm btn-secondary text-white">Set as reported</button>
