@@ -51,14 +51,15 @@
 
     <!-- Back and Send Report Buttons -->
     <div class="d-flex justify-content-between mb-4">
-        <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}{% if page %}&page={{ page }}{% endif %}{% if items_per_page %}&items_per_page={{ items_per_page }}{% endif %}#candidate-{{ candidate.id }}"
+        <a href="{{ return_url }}"
            class="btn btn-danger">Back to Candidate List</a>
 
         <form id="send-report-form"
               method="POST"
-              action="{% url 'candidates:send_tns_report' candidate.id %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}#candidate-{{ candidate.id }}">
+              action="{% url 'candidates:send_tns_report' candidate.id %}">
             {% csrf_token %}
             <input type="hidden" name="comment" id="hidden-comment-input">
+            <input type="hidden" name="return_url" value="{{ return_url }}">
             <button type="submit" class="btn btn-success">Send Report</button>
         </form>
     </div>

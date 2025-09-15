@@ -4,7 +4,7 @@
 
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <div class="container mt-4">
-<h1>Horizon results for {{ candidate.name }}</h1>
+<h1>Horizon results for {{ candidate_name }}</h1>
 
 <!-- Results Section -->
 {% if results %}
@@ -36,7 +36,7 @@
 {% endif %}
     <!-- Back to Search -->
     <div class="d-flex justify-content-between mb-4">
-        <a href="{% url 'candidates:list' %}?{% if start_datetime %}start_datetime={{ start_datetime|urlencode }}{% endif %}{% if end_datetime %}&end_datetime={{ end_datetime|urlencode }}{% endif %}{% if page %}&page={{ page }}{% endif %}{% if items_per_page %}&items_per_page={{ items_per_page }}{% endif %}#candidate-{{ candidate.id }}"
+        <a href="{{ return_url }}"
         class="btn btn-danger"> Back to Candidate List</a>
     </div>
 </div>
