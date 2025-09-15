@@ -37,7 +37,7 @@ def extract_params_from_request(request):
         'max_distance': request.GET.get('max_distance', ''),
         'fieldid_filter': request.GET.get('fieldid_filter', ''),
         'ToO_filter': request.GET.get('ToO_filter', ''),
-        'discovery_date': request.GET.get('discovery_date', ''),
+        'discovery_date': request.GET.get('discovery_date'),
         'items_per_page': request.GET.get('items_per_page', 25),
         'return_url': request.get_full_path(),
     }
@@ -203,6 +203,7 @@ def candidate_list_view(request):
         candidates = candidates.filter(ToO_name__iexact=ToO_filter)
 
     discovery_date = request_params['discovery_date']
+    print("Discovery date! ", discovery_date)
     if discovery_date:
         try:
             # Convert to date/datetime if needed
@@ -269,6 +270,7 @@ def candidate_list_view(request):
     
     context = {
         **request_params,
+
         'start_datetime': start_datetime,  # override in case not supplied, and then changed to "now"
         'candidate_status': candidate_status,
         'candidate_count': candidates.count(),
