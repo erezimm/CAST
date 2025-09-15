@@ -91,19 +91,19 @@
             <ul class="pagination">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Previous">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ query_without_page }}" aria-label="Previous">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
                     <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&{{ query_without_page }}">{{ num }}</a>
                     </li>
                 {% endfor %}
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Next">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ query_without_page }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>

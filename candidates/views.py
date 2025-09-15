@@ -268,6 +268,14 @@ def candidate_list_view(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    # Construct query string without 'page' parameter for pagination links
+    parsed = urlparse(request.get_full_path())
+    qs = parse_qs(parsed.query)
+    qs.pop('page', None)
+    query_without_page = urlencode(qs, doseq=True)
+    print("Query without page:", query_without_page)
+
+
     context = {
         **request_params,
 
@@ -275,6 +283,7 @@ def candidate_list_view(request):
         'candidate_status': candidate_status,
         'candidate_count': candidates.count(),
         'page_obj': page_obj,
+        'query_without_page': query_without_page,
         'tns_test': settings.TNS_TEST,
     }
     return render(request, 'candidates/list.html', context)
