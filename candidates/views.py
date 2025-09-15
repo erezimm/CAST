@@ -273,8 +273,6 @@ def candidate_list_view(request):
     qs = parse_qs(parsed.query)
     qs.pop('page', None)
     query_without_page = urlencode(qs, doseq=True)
-    print("Query without page:", query_without_page)
-
 
     context = {
         **request_params,
