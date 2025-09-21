@@ -533,7 +533,7 @@
         document.querySelectorAll('.copy-link-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const candidateId = btn.getAttribute('data-id');
-                const url = `${window.location.origin}${window.location.pathname}#candidate-${candidateId}`;
+                const url = `${window.location.origin}${window.location.pathname}${window.location.search}#candidate-${candidateId}`;
     
                 function showTooltip(btn, message) {
                     // Manually hide existing tooltip
