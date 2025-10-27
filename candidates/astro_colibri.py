@@ -22,6 +22,7 @@ def update_firestore_db(data):
     request = requests.post(api_url + "/add_last_transient", json=data, auth=auth)
     request.raise_for_status()
     logger.info("Sent to Astro-COLIBRI successfully. Response code: {}".format(request.status_code))
+    logger.info(request.json())
 
 
 def send_to_astri_colibri(candidate):
