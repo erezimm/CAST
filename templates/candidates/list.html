@@ -409,6 +409,10 @@
                         {% endif %}
 
                         <!-- Send to Astro Calibri -->
+                        {% if item.candidate.reported_to_astro_colibri %}
+                        <button type="button" class="btn btn-sm btn-secondary text-white"
+                                style="background-color: rgb(112, 229, 162); border-color: rgb(112, 229, 162);" disabled>Reported to Astro-COLIBRI</button>
+                        {% else %}
                         <form method="POST" action="{% url 'candidates:astro_colibri' item.candidate.id %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
@@ -416,7 +420,8 @@
                             <button type="submit" class="btn btn-sm btn-secondary text-white"
                                     style="background-color: rgb(112, 229, 162); border-color: rgb(112, 229, 162);">Send to Astro-COLIBRI</button>
                         </form>
-                        
+                        {% endif %}
+
                         <!-- Force Photometry Buttuns -->
                         <form method="POST" action="{% url 'candidates:refresh_atlas' item.candidate.id %}"
                               style="display: inline-flex; align-items: center; vertical-align: middle;"

@@ -526,6 +526,8 @@ def send_astro_colibri_view(request, candidate_id):
     return_url = urlunparse(parsed._replace(fragment=f"candidate-{candidate_id}"))
     try:
         send_to_astri_colibri(candidate)
+        candidate.reported_to_astro_colibri = True
+        candidate.save()
         messages.success(request, f"Candidate {candidate.name} sent to Astro Colibri.")
     except Exception as e:
         messages.error(request, f"Failed to send candidate to Astro-COLIBRI: {e}")

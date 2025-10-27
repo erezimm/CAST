@@ -80,6 +80,7 @@ class Candidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     tns_name = models.CharField(max_length=100, null=True, blank=True)  # TNS name (if reported)
     reported_by_LAST = models.BooleanField(default=False)  # Reported by LAST
+    reported_to_astro_colibri = models.BooleanField(default=False)
     host_galaxy = models.CharField(max_length=100, null=True, blank=True)  # Host galaxy name (if associated)
     dist_Mpc = models.FloatField(null=True)  # Distance to the host galaxy in Mpc
     redshift = models.FloatField(null=True)  # Redshift of the host galaxy
