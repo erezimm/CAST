@@ -27,6 +27,7 @@ from .utils import process_json_file, add_candidate_as_target, check_target_exis
                    get_horizons_data, set_reported_by_LAST
 from .models import Candidate,CandidateDataProduct,CandidateAlert
 from .photometry_utils import generate_photometry_graph, get_atlas_fp, get_ztf_fp
+from .astro_colibri import send_to_astri_colibri
 
 
 def extract_params_from_request(request):
@@ -488,7 +489,6 @@ def horizons_view(request, candidate_id):
     return_url = request.POST.get('return_url', reverse('candidates:list'))
     parsed = urlparse(return_url)
     return_url = urlunparse(parsed._replace(fragment=f"candidate-{candidate_id}"))
-    print("I got the return url:", return_url)
     try: 
         data = get_horizons_data(candidate_id)
         if data and data['n_second_pass'] > 0:
@@ -515,3 +515,19 @@ def horizons_view(request, candidate_id):
         'return_url': return_url
     }
     return render(request, 'candidates/horizon.html', context)
+
+def send_astro_colibri_view(request, candidate_id):
+    """
+    Send candidate data to Astro Colibri.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    return_url = request.POST.get('return_url', reverse('candidates:list'))
+    parsed = urlparse(return_url)
+    return_url = urlunparse(parsed._replace(fragment=f"candidate-{candidate_id}"))
+    try:
+        send_to_astri_colibri(candidate)
+        messages.success(request, f"Candidate {candidate.name} sent to Astro Colibri.")
+    except Exception as e:
+        messages.error(request, f"Failed to send candidate to Astro-COLIBRI: {e}")
+
+    return redirect(return_url) 
