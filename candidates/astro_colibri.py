@@ -34,7 +34,6 @@ def send_to_astri_colibri(candidate):
 
     data = {
             "timestamp": candidate.discovery_datetime.strftime("%Y-%m-%d %H:%M:%S"),
-            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "trigger_id": "last_stellar_" + candidate.discovery_datetime.strftime("%Y%m%d%H%M%S"),
             "source_name": candidate.generate_LAST_name(),  # name that will appear as source name in Astro-COLIBRI
             "ra": candidate.ra,
