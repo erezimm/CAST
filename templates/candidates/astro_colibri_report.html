@@ -1,0 +1,63 @@
+{% extends 'tom_common/base.html' %}
+{% block title %}Astro-COLIBRI Report for {{ candidate.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Astro-COLIBRI Report for {{ candidate.name }}</h1>
+    <h4>Please check the details below before sending the report</h4>
+    <hr>
+
+    <h4>Report Details</h4>
+    <table class="table table-bordered">
+        <tbody>
+            {% for key, value in report_details.items %}
+            <tr>
+                <th>{{ key|title }}</th>
+                <td>
+                {% if value.items %}
+                    {% if key == "photometry" %}
+                        <table class="table table-sm table-bordered mb-0">
+                            {% for filtername, stats in value.items %}
+                            <tr>
+                                <th colspan="2"> Filter name: {{ filtername }}</th>
+                            </tr>
+                            {% for epoch, datapoint in stats.items %}
+                            <tr>
+                                <td><strong>{{ epoch|title }}</strong></td>
+                                <td>
+                                    Time: {{ datapoint.time }}<br>
+                                    Filter: {{ datapoint.filter }}<br>
+                                    Mag: {{ datapoint.mag }} ± {{ datapoint.mag_err }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% endfor %}
+                        </table>
+                    {% else %}
+                        <pre>{{ value|safe }}</pre>
+                    {% endif %}
+                {% else %}
+                    {{ value }}
+                {% endif %}
+            </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Back and Send Report Buttons -->
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{{ return_url }}"
+           class="btn btn-danger">Back to Candidate List</a>
+
+        <form id="send-report-form"
+              method="POST"
+              action="{% url 'candidates:send_astro_colibri' candidate.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="comment" id="hidden-comment-input">
+            <input type="hidden" name="return_url" value="{{ return_url }}">
+            <button type="submit" class="btn btn-success">Send Report</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
