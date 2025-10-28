@@ -18,14 +18,16 @@ with open(auth_filename, "r") as f:
 auth = requests.auth.HTTPBasicAuth("last", auth_pass)
 
 
-def update_firestore_db(data):
+def send_astro_colibri(data):
+    logger.info("Sending candidate {} to Astro-COLIBRI".format(data['source_name']))
+    logger.info(json.dumps(data, indent=4))
     request = requests.post(api_url + "/add_last_transient", json=data, auth=auth)
     request.raise_for_status()
     logger.info("Sent to Astro-COLIBRI successfully. Response code: {}".format(request.status_code))
     logger.info(request.json())
 
 
-def send_to_astri_colibri(candidate):
+def prepare_astro_colibri_data(candidate):
 
     detections = candidate.photometry.filter(magnitude__isnull=False).order_by('obs_date')
     first_detection = detections.first()
@@ -69,6 +71,4 @@ def send_to_astri_colibri(candidate):
             },
         }
 
-    logger.info("Sending candidate {} to Astro-COLIBRI".format(candidate.id))
-    logger.info(json.dumps(data, indent=4))
-    update_firestore_db(data)
+    return data

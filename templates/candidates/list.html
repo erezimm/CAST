@@ -413,7 +413,7 @@
                         <button type="button" class="btn btn-sm btn-secondary text-white"
                                 style="background-color: rgb(112, 229, 162); border-color: rgb(112, 229, 162);" disabled>Reported to Astro-COLIBRI</button>
                         {% else %}
-                        <form method="POST" action="{% url 'candidates:astro_colibri' item.candidate.id %}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:astro_colibri_report' item.candidate.id %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
                             <input type="hidden" name="return_url" value="{{ request.get_full_path }}">

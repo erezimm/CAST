@@ -27,7 +27,7 @@ from .utils import process_json_file, add_candidate_as_target, check_target_exis
                    get_horizons_data, set_reported_by_LAST
 from .models import Candidate,CandidateDataProduct,CandidateAlert
 from .photometry_utils import generate_photometry_graph, get_atlas_fp, get_ztf_fp
-from .astro_colibri import send_to_astri_colibri
+from .astro_colibri import prepare_astro_colibri_data, send_astro_colibri
 
 
 def extract_params_from_request(request):
@@ -525,7 +525,11 @@ def send_astro_colibri_view(request, candidate_id):
     parsed = urlparse(return_url)
     return_url = urlunparse(parsed._replace(fragment=f"candidate-{candidate_id}"))
     try:
-        send_to_astri_colibri(candidate)
+        # Ideally, this data should be provided from astro_colbri_report after
+        # already prepared there. For a lack of a better solution, we prepare 
+        # it again here, same as in tns_report_details that's called twice.
+        data = prepare_astro_colibri_data(candidate)
+        send_astro_colibri(data)
         candidate.reported_to_astro_colibri = True
         candidate.save()
         messages.success(request, f"Candidate {candidate.name} sent to Astro Colibri.")
@@ -533,3 +537,31 @@ def send_astro_colibri_view(request, candidate_id):
         messages.error(request, f"Failed to send candidate to Astro-COLIBRI: {e}")
 
     return redirect(return_url) 
+
+
+def astro_colibri_report(request, candidate_id):
+    """
+    View for displaying Astro-COLIBRI report details and manually sending the report.
+    """
+    candidate = get_object_or_404(Candidate, id=candidate_id)
+    return_url = request.POST.get('return_url', reverse('candidates:list'))
+    parsed = urlparse(return_url)
+    return_url = urlunparse(parsed._replace(fragment=f"candidate-{candidate_id}"))
+
+    report_details = prepare_astro_colibri_data(candidate)
+    
+    # report_details = {
+    #     "RA": at_report['RA']['value'],
+    #     "DEC": at_report['Dec']['value'],
+    #     "discovery_datetime": at_report['discovery_datetime'][0],
+    #     "last_non_detection" : at_report['non_detection']['obsdate'][0],
+    #     "non_detection_limit": at_report['non_detection']['flux'],
+    #     "detection_mag" : at_report['photometry']['photometry_group']['flux'],
+    #     "reporters" : at_report['reporter'],
+    # }
+
+    return render(request, 'candidates/astro_colibri_report.html', {
+        'candidate': candidate,
+        'report_details': report_details,
+        'return_url': return_url,
+    })
