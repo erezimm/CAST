@@ -26,21 +26,20 @@
                 <button type="submit" class="btn btn-primary">Filter</button>
             </div>
         </div>
-
-        <div class="form-row mt-2">
-            <!-- Filter Dropdown -->
-            <div class="col-md-2">
-                <label for="filter">Filters:</label>
-                <select id="filter" name="filter" class="form-control" onchange="this.form.submit();">
-                    <option value="all" {% if filter_value == 'all' %}selected{% endif %}>All</option>
-                    <option value="neither" {% if filter_value == 'neither' %}selected{% endif %}>New</option>
-                    <option value="tns_not_reported" {% if filter_value == 'tns_not_reported' %}selected{% endif %}>Not reported to TNS</option>
-                    <option value="tns_reported" {% if filter_value == 'tns_reported' %}selected{% endif %}>Reported to TNS</option>
-                    <option value="real" {% if filter_value == 'real' %}selected{% endif %}>Real</option>
-                    <option value="bogus" {% if filter_value == 'bogus' %}selected{% endif %}>Bogus</option>
-                </select>
-            </div>
-        </div>
+    <!-- Filter Dropdown -->
+        <div class="form-group">
+            <label for="filter">Filters:</label>
+            <select id="filter" name="filter" class="col-md-2 form-control form-control-sm" onchange="this.form.submit();">
+                <option value="all" {% if filter_value == 'all' %}selected{% endif %}>All</option>
+                <option value="neither" {% if filter_value == 'neither' %}selected{% endif %}>New</option>
+                <option value="tns_not_reported" {% if filter_value == 'tns_not_reported' %}selected{% endif %}>Not reported to TNS</option>
+                <option value="tns_reported" {% if filter_value == 'tns_reported' %}selected{% endif %}>Reported to TNS</option>
+                <option value="real" {% if filter_value == 'real' %}selected{% endif %}>Real</option>
+                <option value="bogus" {% if filter_value == 'bogus' %}selected{% endif %}>Bogus</option>
+                <option value="followup" {% if filter_value == 'followup' %}selected{% endif %}>Marked for follow-up</option>
+            </select>
+            <p class="mb-0"><b>Number of Candidates Found:</b> {{ candidate_count }}</p>
+            
         <div class="form-row mt-2">
             <div class="col-md-1">
                 <label for="max_distance">Max Distance (Mpc):</label>
@@ -135,6 +134,14 @@
                     id="candidate-{{ item.candidate.id }}"
                 >
                     <td>
+                        {% if item.candidate.marked_for_followup %}
+                        <p>
+                            <span class="badge text-white"
+                                style="background-color: rgb(0, 96, 206); border: 1px solid rgb(0, 96, 206);">
+                                Marked for classification
+                            </span>
+                        </p>
+                        {% endif %}
                         <p><b>Discovery date (UTC):</b> {{ item.candidate.discovery_datetime|date:"Y-m-d H:i" }}</p>
                         <p>
                             <b>Name:</b> 
@@ -348,6 +355,43 @@
                             <button type="submit" class="btn btn-sm btn-primary">Add Target</button>
                         </form>
                         {% endif %}
+                        {% if item.candidate.marked_for_followup %}
+                            <!-- Unmark follow-up -->
+                            <form method="POST"
+                                action="{% url 'candidates:update_followup' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+                                style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="followup" value="unmark">
+                                <button type="submit"
+                                        class="btn btn-sm"
+                                        style="
+                                            background-color: white;
+                                            color: rgb(0, 96, 206);
+                                            border: 1px solid rgb(0, 96, 206);
+                                        ">
+                                    Unmark follow-up
+                                </button>
+                            </form>
+                        {% else %}
+                        <!-- Mark for follow-up -->
+                            <form method="POST"
+                                action="{% url 'candidates:update_followup' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+                                style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="followup" value="mark">
+                                <button type="submit"
+                                        class="btn btn-sm text-white"
+                                        style="background-color: rgba(0, 96, 206); border-color: rgba(0, 96, 206);">
+                                    Mark for follow-up
+                                </button>
+                            </form>
+                        {% endif %}
+                        <!-- update cutous Button -->
+                        <!-- <form method="POST" action="{% url 'candidates:update_candidate_cutouts' item.candidate.id %}?filter={{ filter_value }}%}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <button type="submit" class="btn btn-sm btn-info">Update Cutouts</button>
+                        </form> -->
 
                         <!-- Check Simbad-->
                         <a href="http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=1&Radius=3&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord={{ item.candidate.ra }} {{ item.candidate.dec }}" 

@@ -178,8 +178,14 @@ def candidate_list_view(request):
     elif filter_value == 'tns_reported':
         candidates = Candidate.objects.filter(reported_by_LAST=True).order_by('-created_at')
     elif filter_value == 'tns_not_reported':
-        # Filter candidates that are not reported by LAST and not bogus but could be real and has not classification
-        candidates = Candidate.objects.filter(reported_by_LAST=False, classification__isnull=True).filter(Q(real_bogus__isnull=True) | Q(real_bogus=True)).order_by('-created_at')
+        candidates = Candidate.objects.filter(
+            reported_by_LAST=False,
+            classification__isnull=True
+        ).filter(
+            Q(real_bogus__isnull=True) | Q(real_bogus=True)
+        ).order_by('-created_at')
+    elif filter_value == 'followup':
+        candidates = Candidate.objects.filter(marked_for_followup=True).order_by('-created_at')
     else:  # 'all'
         candidates = Candidate.objects.all().order_by('-created_at')
 
@@ -370,6 +376,50 @@ def update_classification_view(request, candidate_id):
         return redirect(return_url)
 
     return redirect('candidates:list')
+
+@login_required
+@user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())
+def update_followup_view(request, candidate_id):
+    """
+    Mark or unmark a candidate as 'marked_for_followup'.
+    """
+    if request.method == 'POST':
+        candidate = get_object_or_404(Candidate, id=candidate_id)
+        followup_action = request.POST.get('followup')
+
+        if followup_action == 'mark':
+            candidate.marked_for_followup = True
+            msg = f"{candidate.name} marked for follow-up."
+        elif followup_action == 'unmark':
+            candidate.marked_for_followup = False
+            msg = f"{candidate.name} unmarked for follow-up."
+        else:
+            messages.error(request, "Invalid follow-up action.")
+            return redirect('candidates:list')
+
+        candidate.save()
+        messages.success(request, msg)
+
+    # Keep the same redirect pattern you use everywhere else
+    filter_value = request.GET.get('filter', 'all')
+    redirect_url = f"{reverse('candidates:list')}?filter={filter_value}"
+    start_datetime = request.GET.get('start_datetime', '')
+    end_datetime = request.GET.get('end_datetime', '')
+    page = request.GET.get('page', '')
+    items_per_page = request.GET.get('items_per_page', 25)
+
+    if start_datetime:
+        redirect_url += f"&start_datetime={start_datetime}"
+    if end_datetime:
+        redirect_url += f"&end_datetime={end_datetime}"
+    if page:
+        redirect_url += f"&page={page}"
+    if items_per_page:
+        redirect_url += f"&items_per_page={items_per_page}"
+
+    redirect_url += f"#candidate-{candidate_id}"
+
+    return redirect(redirect_url)
 
 @login_required
 @user_passes_test(lambda user: user.groups.filter(name='LAST general').exists())

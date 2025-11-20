@@ -92,6 +92,7 @@ class Candidate(models.Model):
         null=True,
         blank=True
     )
+    marked_for_followup = models.BooleanField(default=False)  # Marked for follow-up observations
     
     def save(self, check_tns=True, *args, **kwargs):
         """
