@@ -20,4 +20,5 @@ urlpatterns = [
     path('refresh_atlas/<int:candidate_id>/', views.refresh_atlas_view, name='refresh_atlas'),
     path('refresh_ztf/<int:candidate_id>/', views.refresh_ztf_view, name='refresh_ztf'),
     path('set_reported_by_LAST/<int:candidate_id>/', views.set_reported_by_last_view, name='set_reported_by_LAST'),
+    path('<int:candidate_id>/update_followup/', views.update_followup_view, name='update_followup'),
 ]
