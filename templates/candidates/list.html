@@ -3,21 +3,24 @@
 {% block content %}
 
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <div class="container-fluid mt-16">
     <h1 class="mb-16">Candidate List</h1>
 
     <!-- Date selection -->
-    <form method="GET" action="{% url 'candidates:list' %}" class="mb-4">
+    <form method="GET" id="filter-form" action="{% url 'candidates:list' %}" class="mb-4">
         <div class="form-row">
             <div class="col-md-2">
                 <label for="start_datetime">Start Date:</label>
+                <!-- start_datetime is a datetime object, while end_datetime and disocery_date are strings.
+                     start_datetime is processed in views.candidate_list_view to use as "now" if not supplied. -->
                 <input type="datetime-local" id="start_datetime" name="start_datetime" class="form-control" 
-                       value="{{ start_datetime|date:'Y-m-d\\TH:i' }}">
+                       value="{{ start_datetime|date:'Y-m-d\\TH:i' }}"> 
             </div>
             <div class="col-md-2">
                 <label for="end_datetime">End Date:</label>
                 <input type="datetime-local" id="end_datetime" name="end_datetime" class="form-control" 
-                       value="{{ end_datetime|date:'Y-m-d\\TH:i' }}">
+                       value="{{ end_datetime }}">
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary">Filter</button>
@@ -36,13 +39,57 @@
                 <option value="followup" {% if filter_value == 'followup' %}selected{% endif %}>Marked for follow-up</option>
             </select>
             <p class="mb-0"><b>Number of Candidates Found:</b> {{ candidate_count }}</p>
+
+        <div class="form-row mt-2">
+            <!-- Filter Dropdown -->
+            <div class="col-md-2">
+                <label for="filter">Filters:</label>
+                <select id="filter" name="filter" class="form-control" onchange="this.form.submit();">
+                    <option value="all" {% if filter_value == 'all' %}selected{% endif %}>All</option>
+                    <option value="neither" {% if filter_value == 'neither' %}selected{% endif %}>New</option>
+                    <option value="tns_not_reported" {% if filter_value == 'tns_not_reported' %}selected{% endif %}>Not reported to TNS</option>
+                    <option value="tns_reported" {% if filter_value == 'tns_reported' %}selected{% endif %}>Reported to TNS</option>
+                    <option value="real" {% if filter_value == 'real' %}selected{% endif %}>Real</option>
+                    <option value="bogus" {% if filter_value == 'bogus' %}selected{% endif %}>Bogus</option>
+                </select>
+            </div>
         </div>
+        <div class="form-row mt-2">
+            <div class="col-md-1">
+                <label for="max_distance">Max Distance (Mpc):</label>
+                <input type="number" step="any" id="max_distance" name="max_distance" class="form-control"
+                    value="{{ max_distance }}">
+            </div>
+            <div class="col-md-1">
+                <label for="fieldid_filter">Field ID:</label>
+                <input type="number" id="fieldid_filter" name="fieldid_filter" class="form-control"
+                    value="{{ fieldid_filter }}">
+            </div>
+            <div class="col-md-1">
+                <label for="ToO_filter">ToO Name:</label>
+                <input type="text" id="ToO_filter" name="ToO_filter" class="form-control"
+                        list="too-options" value="{{ ToO_filter }}" onchange="this.form.submit();">
+                <datalist id="too-options">
+                    {% for item in page_obj.object_list %}
+                        {% if item.candidate.ToO_name %}
+                            <option value="{{ item.candidate.ToO_name }}">
+                        {% endif %}
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="col-md-2">
+                <label for="discovery_date">Discovery Date After:</label>
+                <input type="datetime-local" id="discovery_date" name="discovery_date" class="form-control"
+                       value="{{ discovery_date }}">
+            </div>
+        </div>
+        <p class="mb-0"><b>Number of Candidates Found:</b> {{ candidate_count }}</p>
     </form>
-    <!-- <p><b>Number of Candidates Found:</b> {{ candidate_count }}</p> -->
+
     <!-- Pagination controls -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <form method="GET" action="{% url 'candidates:list' %}" class="form-inline">
+            <form method="GET" id="pagination-form" action="{% url 'candidates:list' %}" class="form-inline">
                 <label for="items_per_page" class="mr-2">Items per page:</label>
                 <select id="items_per_page" name="items_per_page" class="form-control form-control-sm" onchange="this.form.submit();">
                     <option value="20" {% if items_per_page|default:25 == 25 %}selected{% endif %}>25</option>
@@ -51,29 +98,25 @@
                     <option value="50" {% if items_per_page|default:25 == 50 %}selected{% endif %}>50</option>
                     <option value="100" {% if items_per_page|default:25 == 100 %}selected{% endif %}>100</option>
                 </select>
-                <input type="hidden" name="filter" value="{{ filter_value }}">
-                <input type="hidden" name="start_datetime" value="{{ start_datetime|date:'Y-m-d\\TH:i' }}">
-                <input type="hidden" name="end_datetime" value="{{ end_datetime|date:'Y-m-d\\TH:i' }}">
-                <input type="hidden" name="page" value="{{ current_page }}">
             </form>
         </div>
         <nav aria-label="Page navigation">
             <ul class="pagination">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Previous">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ query_without_page }}" aria-label="Previous">
                             <span aria-hidden="true">&laquo;</span>
                         </a>
                     </li>
                 {% endif %}
                 {% for num in page_obj.paginator.page_range %}
                     <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}&{{ query_without_page }}">{{ num }}</a>
                     </li>
                 {% endfor %}
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Next">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ query_without_page }}" aria-label="Next">
                             <span aria-hidden="true">&raquo;</span>
                         </a>
                     </li>
@@ -88,8 +131,6 @@
                     <th>Details</th>
                     <th>Cutouts</th>
                     <th>Photometry</th>
-                    <!-- <th>Coordinates (RA, DEC)</th> -->
-                    <!-- <th>Discovery date</th> -->
                     <th>Real/Bogus</th>
                     <th>Actions</th>
                 </tr>
@@ -121,6 +162,12 @@
                             <a href="{% url 'candidates:candidate_detail' item.candidate.id %}?filter_value={{ filter_value|urlencode }}&start_datetime={{ start_datetime|urlencode }}&end_datetime={{ end_datetime|urlencode }}">
                                 {{ item.candidate.name }}
                             </a>
+                            <button class="btn btn-link p-0 ml-2 copy-link-btn" 
+                                    data-toggle="tooltip" 
+                                    title="Copy link to this row" 
+                                    data-id="{{ item.candidate.id }}">
+                                <i class="fas fa-link"></i>
+                            </button>
                         </p>
                         <p>{% if item.candidate.tns_name %}
                             <b>IAU name:</b>
@@ -227,25 +274,28 @@
                         <div style="margin-top: 10px; display: flex; flex-direction: column; gap;">
                             <!-- Real/Bogus Buttons -->
                             <div style="display: flex; flex-direction: row; gap: 5px;">
-                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="real_bogus" value="real">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-success" {% if item.candidate.real_bogus is True %}disabled{% endif %}>
                                         Real
                                     </button>     
                                 </form>
 
-                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="real_bogus" value="bogus">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-danger" {% if item.candidate.real_bogus is False %}disabled{% endif %}>
                                         Bogus
                                     </button>
                                 </form>
 
-                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                                <form method="POST" action="{% url 'candidates:update_real_bogus' item.candidate.id %}" style="display:inline;">
                                     {% csrf_token %}
                                     <input type="hidden" name="real_bogus" value="null">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-secondary text-white">
                                         Reset
                                     </button>
@@ -263,36 +313,40 @@
                                 <b>Classification:</b>
                             </div>
                             <div style="display: flex; flex-direction: row; gap: 5px;">
-                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="stellar">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'stellar' %}disabled{% endif %}>
                                         Stellar
                                     </button>
                                 </form>
                     
-                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="solar">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'solar' %}disabled{% endif %}>
                                         Solar
                                     </button>
                                 </form>
                     
-                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="agn">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-info" {% if item.candidate.classification == 'agn' %}disabled{% endif %}>
-                                        Nuclear
+                                        AGN
                                     </button>
                                 </form>
                             </div>
                     
                             <!-- Row for Reset Button -->
                             <div style="display: flex; justify-content: margin-top: 2px;">
-                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}">
+                                <form method="POST" action="{% url 'candidates:update_classification' item.candidate.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="classification" value="null">
+                                    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-sm btn-secondary text-white">
                                         Reset Classification
                                     </button>
@@ -308,9 +362,10 @@
                         </a>
                         {% else %}
                         <!-- Blue "Add Target" button -->
-                        <form method="POST" action="{% url 'candidates:add_target' %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:add_target' %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                             <button type="submit" class="btn btn-sm btn-primary">Add Target</button>
                         </form>
                         {% endif %}
@@ -359,6 +414,7 @@
                         target="_blank">
                          Simbad Lookup
                         </a>
+
                         <!-- Check NED-->
                         <a href="https://ned.ipac.caltech.edu/cgi-bin/nph-objsearch?lon={{ item.candidate.ra }}d&lat={{ item.candidate.dec }}d&radius=2.0&search_type=Near+Position+Search" 
                         class="btn btn-sm btn-secondary text-white" 
@@ -366,6 +422,7 @@
                         target="_blank">
                          NED Lookup
                         </a>
+
                         {% if not item.candidate.tns_name%}
                             <!-- Check TNS-->
                             {% if tns_test %}
@@ -384,18 +441,15 @@
                             </a>
                             {% endif %}
                         {% endif %}
-                        <!-- Check skyserver -->
-                        <!-- <a href="http://skyserver.sdss.org/dr17/en/tools/chart/navi.aspx?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}"
-                        class="btn btn-sm btn-secondary text-white"
-                        target="_blank">
-                            Skyserver
-                        </a> -->
+
                         <!-- Check horizons -->
-                        <form method="POST" action="{% url 'candidates:horizon' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:horizon' item.candidate.id %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                             <button type="submit" class="btn btn-sm btn-secondary text-white">Check Horizons</button>
                         </form>
+
                         <!-- Send TNS Report Button -->
                         {% if item.candidate.reported_by_LAST %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Reported to TNS</button>
@@ -404,15 +458,30 @@
                         {% elif item.candidate.classification != None %}
                         <button type="button" class="btn btn-sm btn-warning" disabled>Target is {{ item.candidate.classification }}</button>
                         {% else %}
-                        <form method="POST" action="{% url 'candidates:tns_report_details' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                        <form method="POST" action="{% url 'candidates:tns_report_details' item.candidate.id %}" style="display:inline;">
                             {% csrf_token %}
                             <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                             <button type="submit" class="btn btn-sm btn-warning">Send TNS Report</button>
                         </form>
                         {% endif %}
-                        
+
+                        <!-- Send to Astro Calibri -->
+                        {% if item.candidate.reported_to_astro_colibri %}
+                        <button type="button" class="btn btn-sm btn-secondary text-white"
+                                style="background-color: rgb(112, 229, 162); border-color: rgb(112, 229, 162);" disabled>Reported to Astro-COLIBRI</button>
+                        {% else %}
+                        <form method="POST" action="{% url 'candidates:astro_colibri_report' item.candidate.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+                            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+                            <button type="submit" class="btn btn-sm btn-secondary text-white"
+                                    style="background-color: rgb(112, 229, 162); border-color: rgb(112, 229, 162);">Send to Astro-COLIBRI</button>
+                        </form>
+                        {% endif %}
+
                         <!-- Force Photometry Buttuns -->
-                        <form method="POST" action="{% url 'candidates:refresh_atlas' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+                        <form method="POST" action="{% url 'candidates:refresh_atlas' item.candidate.id %}"
                               style="display: inline-flex; align-items: center; vertical-align: middle;"
                               class="refresh-form">
                             {% csrf_token %}
@@ -420,13 +489,14 @@
                             <div style="display: inline-flex; align-items: center; background-color: #2aa198; border: 1px solid #2aa198; border-radius: 4px; overflow: hidden;">
                                 <input type="number" name="daysago" placeholder="Days ago" min="1" required
                                        class="form-control form-control-sm text-center" style="width: 100px; border: none; border-radius: 0;">
+                                <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-sm text-white"
                                         style="background-color: #2aa198; border: none; border-left: 1px solid white;">
                                     Refresh Atlas
                                 </button>
                             </div>
                         </form>
-                        <form method="POST" action="{% url 'candidates:refresh_ztf' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+                        <form method="POST" action="{% url 'candidates:refresh_ztf' item.candidate.id %}"
                               style="display: inline-flex; align-items: center; vertical-align: middle;"
                               class="refresh-form">
                             {% csrf_token %}
@@ -434,6 +504,7 @@
                             <div style="display: inline-flex; align-items: center; background-color: #e88b8b; border: 1px solid #e88b8b; border-radius: 4px; overflow: hidden;">
                                 <input type="number" name="daysago" placeholder="Days ago" min="1" required
                                        class="form-control form-control-sm text-center" style="width: 100px; border: none; border-radius: 0;">
+                                <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-sm text-white"
                                         style="background-color: #e88b8b; border: none; border-left: 1px solid white;">
                                     Refresh ZTF
@@ -447,7 +518,7 @@
                             </div>
                             <!-- Update Candidate report status for admins only-->
                              {% if not item.candidate.reported_by_LAST %}
-                            <form method="POST" action="{% url 'candidates:set_reported_by_LAST' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}" style="display:inline;">
+                            <form method="POST" action="{% url 'candidates:set_reported_by_LAST' item.candidate.id %}" style="display:inline;">
                                 {% csrf_token %}
                                 <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
                                 <button type="submit" class="btn btn-sm btn-secondary text-white">Set as reported</button>
@@ -472,32 +543,45 @@
         </table>
     </div>
     <div class="d-flex justify-content-end mt-3">
-        <nav aria-label="Page navigation">
-            <ul class="pagination">
-                {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Previous">
-                            <span aria-hidden="true">&laquo;</span>
-                        </a>
-                    </li>
-                {% endif %}
-                {% for num in page_obj.paginator.page_range %}
-                    <li class="page-item {% if page_obj.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}">{{ num }}</a>
-                    </li>
-                {% endfor %}
-                {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Next">
-                            <span aria-hidden="true">&raquo;</span>
-                        </a>
-                    </li>
-                {% endif %}
-            </ul>
-        </nav>
+            <nav aria-label="Page navigation">
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}">{{ num }}</a>
+                        </li>
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}&filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&items_per_page={{ items_per_page }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
     </div>
 </div>
+
+<style>
+    .highlight-scroll td {
+        animation: rowFlash 3s ease-out;
+    }
+
+    @keyframes rowFlash {
+        0%   { box-shadow: 0 0 10px 3px gold; }
+        100% { box-shadow: none; }
+    }
+</style>
+
 <script>
+    // disable buttons after submit
     document.addEventListener("DOMContentLoaded", function() {
         const forms = document.querySelectorAll("form.refresh-form");
     
@@ -515,5 +599,97 @@
             });
         });
     });
+
+    // copy link tooltips
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll('.copy-link-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const candidateId = btn.getAttribute('data-id');
+                const url = `${window.location.origin}${window.location.pathname}${window.location.search}#candidate-${candidateId}`;
+    
+                function showTooltip(btn, message) {
+                    // Manually hide existing tooltip
+                    $(btn).tooltip('hide');
+
+                    // Update title attribute *and* internal Bootstrap state
+                    $(btn)
+                        .attr('data-original-title', message) // for Bootstrap
+                        .tooltip('dispose')                  // remove old instance
+                        .tooltip({ trigger: 'manual' })      // reinitialize
+                        .tooltip('show');                    // show updated tooltip
+
+                    // Hide after 1s and reset text
+                    setTimeout(() => {
+                        $(btn).tooltip('hide')
+                            .attr('data-original-title', 'Copy link to this row');
+                    }, 1000);
+                }
+    
+                const textarea = document.createElement("textarea");
+                textarea.value = url;
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    showTooltip(btn, successful ? 'Link copied!' : 'Failed to copy');
+                } catch {
+                    showTooltip(btn, 'Failed to copy');
+                }
+                document.body.removeChild(textarea);
+            });
+        });
+    });
+    $(function () {
+        $('[data-toggle="tooltip"]').tooltip({ trigger: 'manual' });
+    });
+
+    // highlight row
+    document.addEventListener("DOMContentLoaded", function () {
+        const hash = window.location.hash;
+        if (hash.startsWith("#candidate-")) {
+            const row = document.querySelector(hash);
+            if (row) {
+                row.classList.add("highlight-scroll");
+                setTimeout(() => {
+                    row.classList.remove("highlight-scroll");
+                }, 2000);
+            }
+        }
+    });
+
+    // Sync filter form inputs to pagination form on items_per_page change
+    document.addEventListener("DOMContentLoaded", function () {
+        const filterForm = document.getElementById("filter-form");
+        const paginationForm = document.getElementById("pagination-form");
+
+        if (!filterForm || !paginationForm) return;
+
+        // On change of items_per_page, copy over inputs from filterForm
+        const itemsSelect = paginationForm.querySelector("#items_per_page");
+        if (itemsSelect) {
+            itemsSelect.addEventListener("change", function () {
+                // Clear old synced inputs
+                paginationForm.querySelectorAll(".synced-input").forEach(e => e.remove());
+
+                // Copy current filter inputs
+                filterForm.querySelectorAll("input, select").forEach(input => {
+                    if (!input.name || !input.value) return;
+
+                    const clone = document.createElement("input");
+                    clone.type = "hidden";
+                    clone.name = input.name;
+                    clone.value = input.value;
+                    clone.classList.add("synced-input");
+                    paginationForm.appendChild(clone);
+                });
+
+                paginationForm.submit();
+            });
+        }
+    });
+
 </script>
 {% endblock %}>

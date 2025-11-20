@@ -15,13 +15,27 @@
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">Go</button>
-            </div>
+        </div>
         </div>
     </form>
 
     <!-- Plot image -->
     <div class="text-center">
         <img src="{% static 'LAST/plots/'|add:night|add:'.png' %}" alt="Sky Plot for {{ night }}" class="img-fluid rounded shadow-sm">
+    </div>
+
+    <!-- Navigation Arrows -->
+    <div class="row justify-content-center mb-3">
+        <div class="col-auto">
+            <a href="{% url 'LAST:observed-fields' %}?night={{ prev_night }}" class="btn btn-outline-secondary">
+                ← Previous
+            </a>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'LAST:observed-fields' %}?night={{ next_night }}" class="btn btn-outline-secondary">
+                Next →
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}
