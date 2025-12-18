@@ -777,7 +777,7 @@ def send_tns_reply(id_report):
     return response
 
 
-def tns_report_details(candidate,first_name,last_name,comment=None):
+def tns_report_details(candidate,first_name,last_name,at_type=None,comment=None):
     """
     Get the TNS report details for a candidate before sending the details
     :param candidate: Candidate instance
@@ -804,10 +804,11 @@ def tns_report_details(candidate,first_name,last_name,comment=None):
         data["at_report"]["remarks"] = comment
     else:
         data["at_report"]["remarks"] = ""
+    data["at_report"]["at_type"] = at_type
     return data
 
 
-def send_tns_report(candidate,first_name,last_name,comment=None):
+def send_tns_report(candidate,first_name,last_name,at_type=None,comment=None):
     """
     Generate a TNS report based on the original json file
     :param candidate: Candidate instance
@@ -820,7 +821,7 @@ def send_tns_report(candidate,first_name,last_name,comment=None):
     # file = dataproduct.datafile
     # file_content = file.read().decode('utf-8')  # Decode to string
     # data = json.loads(file_content)  # Parse the JSON content
-    data = tns_report_details(candidate,first_name,last_name,comment=comment)
+    data = tns_report_details(candidate,first_name,last_name,at_type=at_type,comment=comment)
     transformed_json = json.dumps(transform_json_tns(data))
     report = json.loads(StringIO(transformed_json).read(), object_pairs_hook = OrderedDict)
     response = send_json_tns_report(report)

@@ -11,7 +11,6 @@
     <h4>Please check the details below before sending the report</h4>
     <hr>
 
-    <!-- Report Details -->
     <h4>Report Details</h4>
     <table class="table table-bordered">
         <tbody>
@@ -40,6 +39,37 @@
                 <td>{{ report_details.reporters }}</td>
             </tr>
             <tr>
+                <th>Object Type (at_type)</th>
+                <td>
+                    <div class="at-type-selection">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type1" value="1" checked>
+                            <label class="form-check-label" for="type1">PSN – Possible SN</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type2" value="2">
+                            <label class="form-check-label" for="type2">PNV – Possible Nova</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type3" value="3">
+                            <label class="form-check-label" for="type3">AGN – Known AGN</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type4" value="4">
+                            <label class="form-check-label" for="type4">NUC – Possibly nuclear</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type5" value="5">
+                            <label class="form-check-label" for="type5">FRB – Fast Radio Burst event</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type0" value="0">
+                            <label class="form-check-label" for="type0">Other – Undefined</label>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
                 <th>Comment</th>
                 <td>
                     <textarea id="tns-comment" name="comment" rows="4" cols="50"
@@ -49,7 +79,6 @@
         </tbody>
     </table>
 
-    <!-- Back and Send Report Buttons -->
     <div class="d-flex justify-content-between mb-4">
         <a href="{{ return_url }}"
            class="btn btn-danger">Back to Candidate List</a>
@@ -59,23 +88,28 @@
               action="{% url 'candidates:send_tns_report' candidate.id %}">
             {% csrf_token %}
             <input type="hidden" name="comment" id="hidden-comment-input">
+            <input type="hidden" name="at_type" id="hidden-at-type-input">
             <input type="hidden" name="return_url" value="{{ return_url }}">
             <button type="submit" class="btn btn-success">Send Report</button>
         </form>
     </div>
 </div>
 
-<!-- Script to inject comment into hidden input -->
 <script>
 document.getElementById('send-report-form').addEventListener('submit', function(event) {
+    // Handle Comment
     const commentBox = document.getElementById('tns-comment');
-    const hiddenInput = document.getElementById('hidden-comment-input');
-    const commentValue = commentBox.value.trim();
+    const hiddenCommentInput = document.getElementById('hidden-comment-input');
+    hiddenCommentInput.value = commentBox.value.trim();
 
-    if (commentValue) {
-        hiddenInput.value = commentValue;
+    // Handle at_type
+    const selectedType = document.querySelector('input[name="at_type_selector"]:checked');
+    const hiddenTypeInput = document.getElementById('hidden-at-type-input');
+    
+    if (selectedType) {
+        hiddenTypeInput.value = selectedType.value;
     } else {
-        hiddenInput.value = '';
+        hiddenTypeInput.value = '0'; // Default to Other if none selected
     }
 });
 </script>
