@@ -210,7 +210,6 @@ def candidate_list_view(request):
         candidates = candidates.filter(ToO_name__iexact=ToO_filter)
 
     discovery_date = request_params['discovery_date']
-    print("Discovery date! ", discovery_date)
     if discovery_date:
         try:
             # Convert to date/datetime if needed
@@ -428,16 +427,16 @@ def send_tns_report_view(request, candidate_id):
     Generates and sends a TNS report for a candidate.
     """
     comment = request.POST.get('comment', '').strip()
+    at_type = request.POST.get('at_type', None)
     candidate = get_object_or_404(Candidate, id=candidate_id)
     return_url = request.POST.get('return_url', reverse('candidates:list'))
-    print("I got the return url:", return_url)
 
     try:
         user = request.user
         if comment:
-            send_tns_report(candidate,user.first_name,user.last_name,comment)
+            send_tns_report(candidate,user.first_name,user.last_name,at_type,comment)
         else:
-            send_tns_report(candidate,user.first_name,user.last_name)
+            send_tns_report(candidate,user.first_name,user.last_name,at_type)
         # Add a success message with the candidate name being a link to the candidate detail page
         messages.success(
     request,
