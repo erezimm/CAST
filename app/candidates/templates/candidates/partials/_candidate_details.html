@@ -1,0 +1,66 @@
+{% if item.candidate.marked_for_followup %}
+    <p>
+        <span class="badge text-white"
+              style="background-color: rgb(0, 96, 206); border: 1px solid rgb(0, 96, 206);">
+            Marked for classification
+        </span>
+    </p>
+{% endif %}
+
+<p><b>Discovery date (UTC):</b> {{ item.candidate.discovery_datetime|date:"Y-m-d H:i" }}</p>
+
+<p>
+    <b>Name:</b>
+    <a href="{% url 'candidates:candidate_detail' item.candidate.id %}?filter_value={{ filter_value|urlencode }}&start_datetime={{ start_datetime|urlencode }}&end_datetime={{ end_datetime|urlencode }}">
+        {{ item.candidate.name }}
+    </a>
+    <button class="btn btn-link p-0 ml-2 copy-link-btn"
+            data-toggle="tooltip"
+            title="Copy link to this row"
+            data-id="{{ item.candidate.id }}">
+        <i class="fas fa-link"></i>
+    </button>
+</p>
+
+{% if item.candidate.tns_name %}
+<p>
+    <b>IAU name:</b>
+    {% if tns_test %}
+        <a href="https://sandbox.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
+            {{ item.candidate.tns_name }}
+        </a>
+    {% else %}
+        <a href="https://www.wis-tns.org/object/{{ item.candidate.tns_name }}" target="_blank">
+            {{ item.candidate.tns_name }}
+        </a>
+    {% endif %}
+</p>
+{% endif %}
+
+{% if item.candidate.host_galaxy %}
+<p><b>Host galaxy:</b> {{ item.candidate.host_galaxy }}</p>
+{% endif %}
+
+{% if item.candidate.dist_Mpc %}
+<p><b>Distance (Mpc):</b> {{ item.candidate.dist_Mpc|floatformat:2 }}</p>
+{% endif %}
+
+{% if item.candidate.redshift %}
+<p><b>Redshift:</b> {{ item.candidate.redshift|floatformat:6 }}</p>
+{% endif %}
+
+{% if item.candidate.ToO_name %}
+<p><b>Target name:</b> {{ item.candidate.ToO_name }}</p>
+{% endif %}
+
+<p>
+    <b>Coordinates (RA, DEC):</b>
+    {{ item.candidate.ra|floatformat:-5 }},
+    {{ item.candidate.dec|floatformat:-5 }}
+</p>
+
+<p><b>Score:</b> {{ item.last_alert.score|floatformat:-2 }}</p>
+<p><b>mount, camera:</b> {{ item.last_alert.mount }}, {{ item.last_alert.camera }}</p>
+<p><b>field, subimage:</b> {{ item.last_alert.fieldid }}, {{ item.last_alert.subimage }}</p>
+<p><b>Date added:</b> {{ item.candidate.created_at|date:"Y-m-d H:i" }}</p>
+<p><b>Last alert:</b> {{ item.last_alert.created_at|date:"Y-m-d H:i" }}</p>

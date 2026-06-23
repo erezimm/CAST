@@ -1,0 +1,65 @@
+/*!
+ * Adapted from Bootstrap v4.6.2 (https://getbootstrap.com/)
+ * Gives example for custom css.
+ * Remove comment to implement.
+ */
+
+/* These are possible color variables to set themes for your TOM
+:root {
+    --primary: #007bff;
+    --secondary: #6c757d;
+    --success: #28a745;
+    --info: #17a2b8;
+    --warning: #ffc107;
+    --danger: #dc3545;
+    --light: #f8f9fa;
+    --dark: #343a40;
+    --theme_primary: #fff;
+    --theme_text_primary: #000;
+    --theme_accent1: #fff;
+    --theme_accent2: rgba(0, 0, 0, .03);
+    --theme_accent3: #fff;
+    --theme_link_text: #007bff;
+    --theme_link_hover: #0056b3;
+    --theme_link_active: #0056b3;
+}
+*/
+
+:root {
+    --tool-navbar-offset: 3.5rem;
+}
+
+body {
+    padding-top: var(--tool-navbar-offset);
+}
+
+.tool-sidebar {
+    position: sticky;
+    top: var(--tool-navbar-offset);
+    height: calc(100vh - var(--tool-navbar-offset));
+    overflow-y: auto;
+}
+
+.tool-sidebar .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.tool-sidebar .nav-link {
+    color: #f8f9fa;
+}
+
+.tool-sidebar .nav-link:hover,
+.tool-sidebar .nav-link:focus {
+    color: #ffffff;
+}
+
+.tool-sidebar .nav-link.active {
+    color: #ffffff;
+}
+
+@media (max-width: 767.98px) {
+    .tool-sidebar {
+        position: static;
+        height: auto;
+    }
+}

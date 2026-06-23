@@ -1,0 +1,32 @@
+<tr
+    {% if item.candidate.real_bogus is True %}
+        class="table-success"
+    {% elif item.candidate.real_bogus is False %}
+        class="table-danger"
+    {% elif item.candidate.classification != None %}
+        class="table-warning"
+    {% endif %}
+    id="candidate-{{ item.candidate.id }}"
+>
+    <td>
+        {% include "candidates/partials/_candidate_details.html" %}
+    </td>
+
+    <td>
+        {% include "candidates/partials/_candidate_cutouts.html" %}
+    </td>
+
+    <td>
+        {% include "candidates/partials/_candidate_photometry.html" %}
+    </td>
+
+    <td>
+        {% include "candidates/partials/_candidate_classification.html" %}
+    </td>
+
+    <td>
+        <div id="candidate-actions-{{ item.candidate.id }}">
+            {% include "candidates/partials/_candidate_actions.html" %}
+        </div>
+    </td>
+</tr>

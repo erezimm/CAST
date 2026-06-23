@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block main_container_class %}
+container-fluid px-3
+{% endblock %}
+
+{% block title %}Candidate List{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'candidates/list.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.plot.ly/plotly-3.3.0.min.js" charset="utf-8"></script>
+
+
+<div class="container-fluid mt-16">
+    <h1 class="mb-16">Candidate List</h1>
+
+    <!-- Date selection -->
+    {% include "candidates/partials/_filters.html" %}
+
+    <!-- Pagination controls -->
+    {% include "candidates/partials/_pagination.html" %}
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered table-striped w-100">
+            <thead class="thead-light">
+                <tr>
+                    <th>Details</th>
+                    <th>Cutouts</th>
+                    <th>Photometry</th>
+                    <th>Real/Bogus</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in candidate_status %}
+                    {% include "candidates/partials/_candidate_row.html" %}
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">No candidates found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "candidates/partials/_pagination.html" %}
+</div>
+
+    <script src="{% static 'candidates/list.js' %}" defer></script>
+{% endblock %}>

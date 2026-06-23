@@ -118,3 +118,13 @@ Make sure you have the `django` imports and the `about/` and `candidates/` paths
    In your TOM  directory, enter '_statc' folder and create the subfolers '_statc\LAST\plots'. 
    
 Open http://127.0.0.1:8000 in your browser to use the application.
+
+## Large file bootstrap
+
+Large reference files under `app/large_files/` can be fetched automatically by Docker Compose before the app starts.
+
+1. Copy `large_files_manifest.example.json` into `large_files_manifest.json`.
+2. Replace placeholder URLs, headers, and destination paths with your real file sources.
+3. Run `docker compose up`.
+
+The one-shot `download-large-files` service reads the manifest, downloads any missing files, optionally extracts a ZIP member to a second location, and then the Django services continue. Existing files are skipped by default.

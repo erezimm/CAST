@@ -1,0 +1,89 @@
+<div style="display: flex; flex-direction: row; gap: 5px;">
+    <b>Real/Bogus:</b>
+</div>
+
+<div style="margin-top: 10px; display: flex; flex-direction: column; gap;">
+    <div style="display: flex; flex-direction: row; gap: 5px;">
+        <form method="POST"
+              action="{% url 'candidates:update_real_bogus' item.candidate.id %}"
+              hx-post="{% url 'candidates:update_real_bogus' item.candidate.id %}"
+              hx-target="closest tr"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <input type="hidden" name="real_bogus" value="real">
+            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn btn-sm btn-success"
+                    {% if item.candidate.real_bogus is True %}disabled{% endif %}>
+                Real
+            </button>
+        </form>
+
+        <form method="POST"
+              action="{% url 'candidates:update_real_bogus' item.candidate.id %}"
+              hx-post="{% url 'candidates:update_real_bogus' item.candidate.id %}"
+              hx-target="closest tr"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <input type="hidden" name="real_bogus" value="bogus">
+            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn btn-sm btn-danger"
+                    {% if item.candidate.real_bogus is False %}disabled{% endif %}>
+                Bogus
+            </button>
+        </form>
+
+        <form method="POST"
+              action="{% url 'candidates:update_real_bogus' item.candidate.id %}"
+              hx-post="{% url 'candidates:update_real_bogus' item.candidate.id %}"
+              hx-target="closest tr"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <input type="hidden" name="real_bogus" value="null">
+            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn btn-sm btn-secondary text-white">
+                Reset
+            </button>
+        </form>
+    </div>
+
+    {% if item.candidate.real_bogus_user %}
+        <p><b>Set by:</b><br>{{ item.candidate.real_bogus_user }}</p>
+    {% endif %}
+
+    <div style="margin-top: 10px;">
+        <b>Classification:</b>
+    </div>
+
+    <div style="display: flex; gap: 5px;">
+        {% for value,label in item.classification_choices %}
+        <form method="POST"
+              action="{% url 'candidates:update_classification' item.candidate.id %}"
+              hx-post="{% url 'candidates:update_classification' item.candidate.id %}"
+              hx-target="closest tr"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <input type="hidden" name="classification" value="{{ value }}">
+            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn btn-sm btn-info"
+                    {% if item.candidate.classification == value %}disabled{% endif %}>
+                {{ label }}
+            </button>
+        </form>
+        {% endfor %}
+    </div>
+
+    <div style="margin-top: 5px; text-align: center;">
+        <form method="POST"
+              action="{% url 'candidates:update_classification' item.candidate.id %}"
+              hx-post="{% url 'candidates:update_classification' item.candidate.id %}"
+              hx-target="closest tr"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <input type="hidden" name="classification" value="null">
+            <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn btn-sm btn-secondary text-white">
+                Reset Classification
+            </button>
+        </form>
+    </div>
+</div>

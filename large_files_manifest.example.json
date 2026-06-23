@@ -1,0 +1,33 @@
+[
+  {
+    "name": "glade-catalog",
+    "type": "command",
+    "command": [
+      "wget",
+      "-c",
+      "--progress=dot:giga",
+      "-O",
+      "/app/large_files/catalogs/GLADE_for_CAST.txt",
+      "http://elysium.elte.hu/~dalyag/GLADE+.txt"
+    ],
+    "paths": [
+      "/app/large_files/catalogs/GLADE_for_CAST.txt"
+    ],
+    "skip_if_exists": true
+  },
+  {
+    "name": "tns-public-catalog",
+    "type": "command",
+    "command": [
+      "uv",
+      "run",
+      "manage.py",
+      "download_tns_public_objects"
+    ],
+    "paths": [
+      "/app/large_files/tns/tns_public_objects.csv.zip",
+      "/app/large_files/tns/tns_public_objects.csv"
+    ],
+    "skip_if_exists": true
+  }
+]

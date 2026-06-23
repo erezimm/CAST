@@ -1,0 +1,48 @@
+<div id="candidate-comments-{{ comment_candidate.id }}">
+    <h4>Comments</h4>
+
+    {% if comment_list %}
+        <div class="list-group mb-3">
+            {% for comment in comment_list %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <strong>{{ comment.name }}</strong>
+                        <small class="text-muted">{{ comment.submit_date|date:"Y-m-d H:i" }}</small>
+                    </div>
+                    <p class="mb-0 mt-2">{{ comment.comment|linebreaksbr }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No comments yet.</p>
+    {% endif %}
+
+    {% if user.is_authenticated %}
+        <form
+            method="post"
+            action="{% url 'candidates:candidate_comments' comment_candidate.id %}"
+            hx-post="{% url 'candidates:candidate_comments' comment_candidate.id %}"
+            hx-target="#candidate-comments-{{ comment_candidate.id }}"
+            hx-swap="outerHTML"
+        >
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ comment_next_url }}">
+            <div class="form-group">
+                <label for="candidate-comment-{{ comment_candidate.id }}">Add comment</label>
+                <textarea
+                    id="candidate-comment-{{ comment_candidate.id }}"
+                    name="comment"
+                    class="form-control"
+                    rows="4"
+                    required
+                ></textarea>
+            </div>
+            {% if comment_error %}
+                <div class="alert alert-danger" role="alert">{{ comment_error }}</div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">Post Comment</button>
+        </form>
+    {% else %}
+        <p class="text-muted mb-0">Sign in to post a comment.</p>
+    {% endif %}
+</div>

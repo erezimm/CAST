@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}TNS Report for {{ candidate.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if TNS_TEST %}
+    <h1>TNS Test Report for {{ candidate.name }}</h1>
+    {% else %}
+    <h1>TNS Report for {{ candidate.name }}</h1>
+    {% endif %}
+    <h4>Please check the details below before sending the report</h4>
+    <hr>
+
+    <h4>Report Details</h4>
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <th>Coordinates (RA, Dec)</th>
+                <td>{{ report_details.RA }}, {{ report_details.DEC }}</td>
+            </tr>
+            <tr>
+                <th>Discovery Date</th>
+                <td>{{ report_details.discovery_datetime }}</td>
+            </tr>
+            <tr>
+                <th>Discovery magnitude</th>
+                <td>{{ report_details.detection_mag }} mag</td>
+            </tr>
+            <tr>
+                <th>Last non-detection</th>
+                <td>{{ report_details.last_non_detection }}</td>
+            </tr>
+            <tr>
+                <th>Non-detection limit</th>
+                <td>{{ report_details.non_detection_limit }} mag</td>
+            </tr>
+            <tr>
+                <th>Reporters</th>
+                <td>{{ report_details.reporters }}</td>
+            </tr>
+            <tr>
+                <th>Object Type</th>
+                <td>
+                    <div class="at-type-selection">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type1" value="1" checked>
+                            <label class="form-check-label" for="type1">PSN – Possible SN</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type2" value="2">
+                            <label class="form-check-label" for="type2">PNV – Possible Nova</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type3" value="3">
+                            <label class="form-check-label" for="type3">AGN – Known AGN</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type4" value="4">
+                            <label class="form-check-label" for="type4">NUC – Possibly nuclear</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type5" value="5">
+                            <label class="form-check-label" for="type5">FRB – Fast Radio Burst event</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="at_type_selector" id="type0" value="0">
+                            <label class="form-check-label" for="type0">Other – Undefined</label>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th>Comment</th>
+                <td>
+                    <textarea id="tns-comment" name="comment" rows="4" cols="50"
+                            placeholder="Enter any remarks to the report (if applicable)"></textarea>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{{ return_url }}"
+           class="btn btn-danger">Back to Candidate List</a>
+
+        <form id="send-report-form"
+              method="POST"
+              action="{% url 'candidates:send_tns_report' candidate.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="comment" id="hidden-comment-input">
+            <input type="hidden" name="at_type" id="hidden-at-type-input">
+            <input type="hidden" name="return_url" value="{{ return_url }}">
+            <button type="submit" class="btn btn-success">Send Report</button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('send-report-form').addEventListener('submit', function(event) {
+    // Handle Comment
+    const commentBox = document.getElementById('tns-comment');
+    const hiddenCommentInput = document.getElementById('hidden-comment-input');
+    hiddenCommentInput.value = commentBox.value.trim();
+
+    // Handle at_type
+    const selectedType = document.querySelector('input[name="at_type_selector"]:checked');
+    const hiddenTypeInput = document.getElementById('hidden-at-type-input');
+    
+    if (selectedType) {
+        hiddenTypeInput.value = selectedType.value;
+    } else {
+        hiddenTypeInput.value = '0'; // Default to Other if none selected
+    }
+});
+</script>
+{% endblock %}

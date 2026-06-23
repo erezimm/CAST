@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}External API Status{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1>External API Status</h1>
+            <p class="text-muted mb-0">
+                Latest refresh:
+                {% if status_snapshot.refreshed_at %}
+                    {{ status_snapshot.refreshed_at }}
+                {% else %}
+                    Never
+                {% endif %}
+            </p>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Refresh Status</button>
+        </form>
+    </div>
+
+    <div class="row">
+        {% for service in services %}
+            <div class="col-lg-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h4 class="card-title mb-0">{{ service.name }}</h4>
+                            <span class="badge badge-secondary">{{ service.status_label }}</span>
+                        </div>
+
+                        <p class="mb-1"><strong>Configured:</strong> {{ service.configured|yesno:"Yes,No" }}</p>
+                        <p class="mb-1">
+                            <strong>Authenticated:</strong>
+                            {% if service.auth_ok is None %}
+                                Not checked
+                            {% else %}
+                                {{ service.auth_ok|yesno:"Yes,No" }}
+                            {% endif %}
+                        </p>
+                        <p class="mb-1"><strong>Checked at:</strong> {{ service.checked_at }}</p>
+                        <p class="mb-2"><strong>Message:</strong> {{ service.message }}</p>
+
+                        {% if service.metadata %}
+                            <div>
+                                <strong>Details:</strong>
+                                <ul class="mb-0 mt-1">
+                                    {% for key, value in service.metadata.items %}
+                                        <li><strong>{{ key|title }}:</strong> {{ value }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-secondary mb-0">No status available.</div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% if item.cutouts %}
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 10px;">
+        {% for cutout in item.cutouts %}
+            {% if cutout.data_product_type|lower not in 'ps1,sdss' %}
+                <div style="text-align: center;">
+                    <img src="{{ cutout.datafile.url }}"
+                         alt="{{ cutout.name }}"
+                         style="max-width: 240px; height: auto;">
+                    <div>
+                        <small>{{ cutout.data_product_type|title }}</small>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div style="display: flex; gap: 10px; justify-content: center;">
+        {% for cutout in item.cutouts %}
+            {% if cutout.data_product_type|lower == 'ps1' %}
+                <div style="text-align: center;">
+                    <a href="https://ps1images.stsci.edu/cgi-bin/ps1cutouts?pos={{ item.candidate.ra }}+{{ item.candidate.dec }}&filter=color&filter=g&filter=r&filter=i&filter=z&filter=y&filetypes=stack&auxiliary=data&size=240">
+                        <img src="{{ cutout.datafile.url }}"
+                             alt="Pan-STARRS Cutout"
+                             style="max-width: 240px; height: auto;">
+                    </a>
+                    <div><small>Pan-STARRS</small></div>
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {% for cutout in item.cutouts %}
+            {% if cutout.data_product_type|lower == 'sdss' %}
+                <div style="text-align: center;">
+                    <a href="http://skyserver.sdss.org/dr17/en/tools/chart/navi.aspx?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}">
+                        <img src="{{ cutout.datafile.url }}"
+                             alt="SDSS Cutout"
+                             style="max-width: 240px; height: auto;">
+                    </a>
+                    <div><small>SDSS</small></div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% else %}
+    No cutouts available.
+{% endif %}

@@ -1,0 +1,274 @@
+{% load candidate_permissions %}
+{% if item.target %}
+    <!-- Green "Target" button linking to the target detail page -->
+    <a href="{% url 'targets:detail' item.target.id %}" class="btn btn-sm btn-success">
+        Target
+    </a>
+{% else %}
+    <!-- Blue "Add Target" button -->
+    <form method="POST"
+          action="{% url 'candidates:add_target' %}"
+          style="display:inline;"
+          hx-post="{% url 'candidates:add_target' %}"
+          hx-target="closest tr"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+        <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn btn-sm btn-primary">Add Target</button>
+    </form>
+{% endif %}
+
+{% if item.candidate.marked_for_followup %}
+    <!-- Unmark follow-up -->
+    <form method="POST"
+          action="{% url 'candidates:update_followup' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+          style="display:inline;"
+          hx-post="{% url 'candidates:update_followup' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+          hx-target="closest tr"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="followup" value="unmark">
+        <button type="submit"
+                class="btn btn-sm"
+                style="background-color: white; color: rgb(0, 96, 206); border: 1px solid rgb(0, 96, 206);">
+            Unmark follow-up
+        </button>
+    </form>
+{% else %}
+    <!-- Mark for follow-up -->
+    <form method="POST"
+          action="{% url 'candidates:update_followup' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+          style="display:inline;"
+          hx-post="{% url 'candidates:update_followup' item.candidate.id %}?filter={{ filter_value }}&start_datetime={{ start_datetime }}&end_datetime={{ end_datetime }}&page={{ page_obj.number }}&items_per_page={{ items_per_page }}"
+          hx-target="closest tr"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="followup" value="mark">
+        <button type="submit"
+                class="btn btn-sm text-white"
+                style="background-color: rgba(0, 96, 206); border-color: rgba(0, 96, 206);">
+            Mark for follow-up
+        </button>
+    </form>
+{% endif %}
+
+<!-- Check Simbad -->
+<a href="http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=1&Radius=3&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord={{ item.candidate.ra }} {{ item.candidate.dec }}"
+   class="btn btn-sm btn-secondary btn-simbad"
+   target="_blank">
+    Simbad Lookup
+</a>
+
+<!-- Check NED -->
+<a href="https://ned.ipac.caltech.edu/cgi-bin/nph-objsearch?lon={{ item.candidate.ra }}d&lat={{ item.candidate.dec }}d&radius=2.0&search_type=Near+Position+Search"
+   class="btn btn-sm btn-secondary btn-ned"
+   style="background-color: rgb(56, 98, 146); border-color: rgb(56, 98, 146);"
+   target="_blank">
+    NED Lookup
+</a>
+
+<!-- LegacySurvey Viewer (sky coverage + DESI spectra) -->
+<a href="https://www.legacysurvey.org/viewer?ra={{ item.candidate.ra }}&dec={{ item.candidate.dec }}&layer=ls-dr9&zoom=16&desi-spec-edr&desi-spec-dr1"
+   class="btn btn-sm btn-secondary btn-legacysurvey"
+   style="background-color: rgb(102, 51, 153); border-color: rgb(102, 51, 153);"
+   target="_blank"
+   rel="noopener">
+    LegacySurvey Viewer
+</a>
+
+{% if not item.candidate.tns_name %}
+    <!-- possibly can use a function to get the correct url..? same for the others -->
+    {% if tns_test %}
+        <a href="https://sandbox.wis-tns.org/search?ra={{ item.candidate.ra }}&decl={{ item.candidate.dec }}&radius=5&coords_unit=arcsec"
+           class="btn btn-sm btn-secondary btn-tns"
+           target="_blank">
+            TNS Lookup
+        </a>
+    {% else %}
+        <a href="https://www.wis-tns.org/search?ra={{ item.candidate.ra }}&decl={{ item.candidate.dec }}&radius=5&coords_unit=arcsec"
+           class="btn btn-sm btn-secondary btn-tns"
+           target="_blank">
+            TNS Lookup
+        </a>
+    {% endif %}
+{% endif %}
+
+<!-- Check horizons -->
+<form method="POST" action="{% url 'candidates:horizon' item.candidate.id %}" style="display:inline;">
+    {% csrf_token %}
+    <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+    <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+    <button type="submit" class="btn btn-sm btn-secondary text-white">
+        Check Horizons
+    </button>
+</form>
+
+<!-- Send TNS Report Button -->
+{% if item.candidate.reported_by_LAST %}
+    <button type="button" class="btn btn-sm btn-warning" disabled>
+        Reported to TNS
+    </button>
+{% elif item.candidate.real_bogus is False %}
+    <button type="button" class="btn btn-sm btn-warning" disabled>
+        Target is Bogus
+    </button>
+{% elif item.candidate.classification != None %}
+    <button type="button" class="btn btn-sm btn-warning" disabled>
+        Target is {{ item.candidate.classification }}
+    </button>
+{% elif not tns_enabled %}
+    <span class="d-inline-block"
+          data-toggle="tooltip"
+          data-placement="top"
+          title="{{ tns_status.message }}">
+        <button type="button"
+                class="btn btn-sm btn-warning"
+                disabled
+                style="pointer-events: none;">
+            Send TNS Report
+        </button>
+    </span>
+{% elif not request.user|can_send_tns_report %}
+    <span class="d-inline-block"
+          data-toggle="tooltip"
+          data-placement="top"
+          title="You do not have permission to send TNS reports.">
+        <button type="button"
+                class="btn btn-sm btn-warning"
+                disabled
+                style="pointer-events: none;">
+            Send TNS Report
+        </button>
+    </span>
+{% else %}
+    <form method="POST"
+          action="{% url 'candidates:tns_report_details' item.candidate.id %}"
+          style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+        <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn btn-sm btn-warning">
+            Send TNS Report
+        </button>
+    </form>
+{% endif %}
+
+<!-- Send to Astro-COLIBRI -->
+{% if item.candidate.reported_to_astro_colibri %}
+    <button type="button"
+            class="btn btn-sm btn-secondary btn-colibri"
+            disabled>
+        Reported to Astro-COLIBRI
+    </button>
+{% elif not astro_colibri_enabled %}
+    <span class="d-inline-block"
+          data-toggle="tooltip"
+          data-placement="top"
+          title="{{ astro_colibri_status.message }}">
+        <button type="button"
+                class="btn btn-sm btn-secondary btn-colibri"
+                disabled
+                style="pointer-events: none;">
+            Send to Astro-COLIBRI
+        </button>
+    </span>
+{% else %}
+    <form method="POST"
+          action="{% url 'candidates:astro_colibri_report' item.candidate.id %}"
+          style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+        <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+        <button type="submit"
+                class="btn btn-sm btn-secondary colibri"
+                >
+            Send to Astro-COLIBRI
+        </button>
+    </form>
+{% endif %}
+
+<!-- Force Photometry Buttons -->
+<form method="POST"
+      action="{% url 'candidates:refresh_atlas' item.candidate.id %}"
+      style="display: inline-flex; align-items: center; vertical-align: middle;"
+      class="refresh-form"
+      hx-post="{% url 'candidates:refresh_atlas' item.candidate.id %}"
+      hx-target="closest tr"
+      hx-swap="outerHTML">
+    {% csrf_token %}
+    <div style="display: inline-flex; align-items: center; background-color: #2aa198; border: 1px solid #2aa198; border-radius: 4px; overflow: hidden;">
+        <input type="number"
+               name="daysago"
+               placeholder="Days ago"
+               min="1"
+               required
+               class="form-control form-control-sm text-center"
+               style="width: 100px; border: none; border-radius: 0;">
+        <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+        <button type="submit"
+                class="btn btn-sm text-white"
+                style="background-color: #2aa198; border: none; border-left: 1px solid white;">
+            Refresh Atlas
+        </button>
+    </div>
+</form>
+
+<form method="POST"
+      action="{% url 'candidates:refresh_ztf' item.candidate.id %}"
+      style="display: inline-flex; align-items: center; vertical-align: middle;"
+      class="refresh-form"
+      hx-post="{% url 'candidates:refresh_ztf' item.candidate.id %}"
+      hx-target="closest tr"
+      hx-swap="outerHTML">
+    {% csrf_token %}
+    <div style="display: inline-flex; align-items: center; background-color: #e88b8b; border: 1px solid #e88b8b; border-radius: 4px; overflow: hidden;">
+        <input type="number"
+               name="daysago"
+               placeholder="Days ago"
+               min="1"
+               required
+               class="form-control form-control-sm text-center"
+               style="width: 100px; border: none; border-radius: 0;">
+        <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+        <button type="submit"
+                class="btn btn-sm text-white"
+                style="background-color: #e88b8b; border: none; border-left: 1px solid white;">
+            Refresh ZTF
+        </button>
+    </div>
+</form>
+
+{% if request.user.is_superuser %}
+    <div class="mt-2">
+        <b>Admin Actions:</b>
+    </div>
+
+    {% if not item.candidate.reported_by_LAST %}
+        <form method="POST"
+              action="{% url 'candidates:set_reported_by_LAST' item.candidate.id %}"
+              style="display:inline;"
+              hx-post="{% url 'candidates:set_reported_by_LAST' item.candidate.id %}"
+              hx-target="closest tr"
+              hx-swap="outerHTML">
+            {% csrf_token %}
+            <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+            <button type="submit" class="btn btn-sm btn-secondary text-white">
+                Set as reported
+            </button>
+        </form>
+    {% endif %}
+
+    <form method="POST"
+          action="{% url 'candidates:delete_candidate' %}"
+          style="display:inline;"
+          hx-post="{% url 'candidates:delete_candidate' %}"
+          hx-target="closest tr"
+          hx-swap="outerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="candidate_id" value="{{ item.candidate.id }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+            Delete
+        </button>
+    </form>
+{% endif %}
