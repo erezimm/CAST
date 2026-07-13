@@ -151,6 +151,8 @@ def check_candidate_exists_by_cone(ra, dec, radius_arcsec=3):
     :param radius_arcsec: Radius of the cone search in arcseconds.
     :return: True if a candidate exists within the radius, False otherwise.
     """
+    #Write the check in the logger
+    logging.info(f"Checking for existing candidate at RA: {ra}, Dec: {dec}, Radius: {radius_arcsec} arcsec")
     # Convert radius from arcseconds to degrees
     radius_deg = radius_arcsec / 3600.0
 
@@ -158,6 +160,7 @@ def check_candidate_exists_by_cone(ra, dec, radius_arcsec=3):
     queryset = Candidate.objects.all()
     matching_candidates = cone_search_filter_candidates(queryset, ra, dec, radius_deg)
     if matching_candidates.exists():
+        logging.info(f"Found existing candidate with ID: {matching_candidates[0].id} at RA: {matching_candidates[0].ra}, Dec: {matching_candidates[0].dec}")
         return matching_candidates.exists(), matching_candidates[0]
     # Return True if any matching candidates are found, False otherwise
     return matching_candidates.exists(), None
@@ -329,8 +332,8 @@ def process_json_file(file):
             update_candidate_cutouts(existing_candidate)
             
             # Query for forced photometry
-            get_atlas_fp(existing_candidate)
-            get_ztf_fp(existing_candidate)
+            # get_atlas_fp(existing_candidate)
+            # get_ztf_fp(existing_candidate)
 
         if not existing_candidate.host_galaxy:
             gal_name, dist_Mpc, z = associate_galaxy(existing_candidate.ra, existing_candidate.dec)
@@ -435,15 +438,15 @@ def process_json_file(file):
         )
 
     # Forced Photometry
-    try:
-        get_atlas_fp(candidate)
-    except Exception as e:
-        print(f"Error fetching Atlas photometry for candidate {candidate.id}: {e}")
+    # try:
+    #     get_atlas_fp(candidate)
+    # except Exception as e:
+    #     print(f"Error fetching Atlas photometry for candidate {candidate.id}: {e}")
     
-    try:
-        get_ztf_fp(candidate)
-    except Exception as e:
-        print(f"Error fetching ZTF photometry for candidate {candidate.id}: {e}")
+    # try:
+    #     get_ztf_fp(candidate)
+    # except Exception as e:
+    #     print(f"Error fetching ZTF photometry for candidate {candidate.id}: {e}")
     
     # Associate with a host galaxy
     try:
@@ -474,7 +477,7 @@ def process_multiple_json_files(directory_path,cutoff=3):
         .values_list('name', flat=True)
     )
 
-    # Step 2: Set time cutoff to 24 hours ago
+    # Step 2: Set time cutoff to 3 days
     cutoff_time = datetime.now() - timedelta(days=cutoff)
 
     # Step 3: Collect new JSON files

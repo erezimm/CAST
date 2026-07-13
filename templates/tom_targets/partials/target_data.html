@@ -6,39 +6,38 @@
     {% else %}
       <dt class="col-sm-6">&nbsp;</dt>
     {% endif %} -->
-    <!-- <dd class="col-sm-6">{{ target_name }}</dd>
+  <!-- <dd class="col-sm-6">{{ target_name }}</dd>
   {% endfor %} -->
   {% for key, value in target.as_dict.items %}
-    {% if value and key != 'name' %}
-      <dt class="col-sm-6" title="{% help_text target key %}">{% verbose_name target key %}</dt>
-      <dd class="col-sm-6">{{ value|truncate_value_for_display }}</dd>
-    {% endif %}
-    {% if key == 'ra' %}
-      <dt class="col-sm-6">&nbsp;</dt>
-      <dd class="col-sm-6">{{ value|deg_to_sexigesimal:"hms" }}</dd>
-    {% endif%}
-    {% if key == 'dec' %}
-      <dt class="col-sm-6">&nbsp;</dt>
-      <dd class="col-sm-6">{{ value|deg_to_sexigesimal:"dms" }}</dd>
-      <!-- {% if target.constellation %}
+  {% if value and key != 'name' %}
+  <dt class="col-sm-6" title="{% help_text target key %}">{% verbose_name target key %}</dt>
+  {% endif %}
+  {% if key == 'ra' %}
+  <dt class="col-sm-6">&nbsp;</dt>
+  <dd class="col-sm-6">{{ value|deg_to_sexigesimal:"hms" }}</dd>
+  {% endif%}
+  {% if key == 'dec' %}
+  <dt class="col-sm-6">&nbsp;</dt>
+  <dd class="col-sm-6">{{ value|deg_to_sexigesimal:"dms" }}</dd>
+  <!-- {% if target.constellation %}
         <dt class="col-sm-6">Constellation</dt>
         <dd class="col-sm-6">{{ target.constellation }}</dd>
       {% endif %} -->
-    {% endif%}
+  {% endif%}
   {% endfor %}
 </dl>
 <dl class="row">
-{% for key, value in extras.items %}
+  {% for key, value in extras.items %}
   <dt class="col-sm-6">{{ key }}</dt>
   <dd class="col-sm-6">{{ value }}</dd>
-{% endfor %}
+  {% endfor %}
 </dl>
 {% if target.tags %}
 <p>Tags</p>
 <dl class="row">
-{% for key, value in target.tags.items %}
+  {% for key, value in target.tags.items %}
   <dt class="col-sm-6">{{ key }}</dt>
   <dd class="col-sm-6">{{ value }}</dd>
-{% endfor %}
+  {% endfor %}
 </dl>
 {% endif %}

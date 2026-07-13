@@ -151,7 +151,7 @@ def get_atlas_fp(candidate, days_ago=10):
         while not result_url:
             with requests.Session() as s:
                 resp = s.get(task_url, headers=headers)
-
+                run = 0
                 if resp.status_code == 200:  # HTTP OK
                     if resp.json()['finishtimestamp']:
                         result_url = resp.json()['result_url']
@@ -161,7 +161,11 @@ def get_atlas_fp(candidate, days_ago=10):
                         logger.debug(f"Task is running (started at {resp.json()['starttimestamp']})")
                     else:
                         logger.debug("Waiting for job to start. Checking again in 10 seconds...")
-                    time.sleep(10)
+                        if run < 7:
+                            time.sleep(10)
+                        else:
+                            logger.warning("Job is taking longer than expected. aborting")
+                            return None
                 else:
                     logger.error(f'ERROR {resp.status_code}')
                     logger.error(resp.json())
