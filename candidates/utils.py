@@ -825,6 +825,12 @@ def send_tns_report(candidate,first_name,last_name,at_type=None,comment=None):
     # file_content = file.read().decode('utf-8')  # Decode to string
     # data = json.loads(file_content)  # Parse the JSON content
     data = tns_report_details(candidate,first_name,last_name,at_type=at_type,comment=comment)
+    non_detection_flux = data.get("at_report", {}).get("non_detection", {}).get("flux")
+    if non_detection_flux == 0:
+        raise ValueError(
+            "Cannot send a TNS report when the non-detection flux is 0. "
+            "Provide a non-zero non-detection limit."
+        )
     transformed_json = json.dumps(transform_json_tns(data))
     report = json.loads(StringIO(transformed_json).read(), object_pairs_hook = OrderedDict)
     response = send_json_tns_report(report)
